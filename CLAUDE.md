@@ -43,8 +43,10 @@ task_assignees (task_id → tasks.id, person_id → people.id)
 ## Структура папок
 app/page.tsx — главная, Гант
 app/template/page.tsx — редактор шаблона
-components/gantt/ — GanttTable, GanttRow, GanttBar, GanttHeader, GroupHeader
-components/filters/ — FilterDropdown, MultiSelect
+components/gantt/GanttTable.tsx — серверный компонент, загружает данные
+components/gantt/GanttTableClient.tsx — клиентский компонент, группировка, фильтры, стейт
+components/gantt/GanttBar.tsx — плановая и фактическая полоски
+components/filters/FilterDropdown.tsx — дропдаун с чекбоксами
 components/ui/ — StatusSelect, DateInput, Tooltip
 lib/supabase.ts — клиент
 lib/types.ts — TypeScript типы
@@ -124,8 +126,8 @@ hooks/ — useTasks, useTemplate, useProducts
 - [x] Supabase подключён, таблицы созданы
 - [x] GanttTable — базовая таблица с задачами
 - [x] Сортировка задач по template_tasks.order
-- [ ] Колонки дата начала / дата конца — отключаемые
-- [ ] Плановая полоска 20px, фактическая 12px
+- [x] Колонки дата начала / дата конца — отключаемые
+- [x] Плановая полоска 20px, фактическая 12px
 
 ### Блок 2 — Фильтры и UX
 - [x] Фильтр по статусу с чекбоксами и кнопками Применить/Сбросить
@@ -133,8 +135,10 @@ hooks/ — useTasks, useTemplate, useProducts
 - [ ] Фильтры по продукту и ответственному (Блок 3)
 
 ### Блок 3 — Группировка
-- [ ] Двухуровневая группировка Продукт → Производитель → Задачи
-- [ ] Таб-переключатель По продукту / По производителю
+- [x] Двухуровневая группировка Продукт → Производитель → Задачи
+- [x] Таб-переключатель По продукту / По производителю
+- [x] Колонки Продукт и Производитель (отключаемые)
+- [ ] Тултип на гант-баре
 - [ ] Картинка продукта в шапке + тултип
 
 ### Блок 4 — Шаблон
@@ -156,4 +160,4 @@ hooks/ — useTasks, useTemplate, useProducts
 - [ ] Красная линия сегодня и гант-бары залезают на заголовок таблицы
 
 ## Текущий статус
-Блок 1 в процессе. Следующая задача: сортировка задач по числу в названии.
+Блок 3 в процессе. Следующая задача: тултип на гант-баре.

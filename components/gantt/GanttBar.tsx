@@ -1,3 +1,8 @@
+"use client";
+
+import { useState } from "react";
+import Tooltip from "@/components/ui/Tooltip";
+
 const STATUS_COLORS: Record<string, string> = {
   "Не начата": "#B4B2A9",
   "В процессе": "#378ADD",
@@ -25,6 +30,9 @@ type Props = {
   color: string;
   rangeStart: string;
   rangeEnd: string;
+  taskName: string;
+  productName: string;
+  manufacturerName: string;
 };
 
 export default function GanttBar({
@@ -36,7 +44,12 @@ export default function GanttBar({
   color,
   rangeStart,
   rangeEnd,
+  taskName,
+  productName,
+  manufacturerName,
 }: Props) {
+  const [tooltip, setTooltip] = useState<{ x: number; y: number } | null>(null);
+
   const planLeft = toPercent(planStart, rangeStart, rangeEnd);
   const planWidth = toPercent(planEnd, rangeStart, rangeEnd) - planLeft;
 
@@ -52,7 +65,13 @@ export default function GanttBar({
   const factTop = (CONTAINER_HEIGHT - FACT_HEIGHT) / 2;
 
   return (
-    <div className="relative w-full" style={{ height: CONTAINER_HEIGHT }}>
+    <div
+      className="relative w-full"
+      style={{ height: CONTAINER_HEIGHT }}
+      onMouseEnter={(e) => setTooltip({ x: e.clientX, y: e.clientY })}
+      onMouseMove={(e) => setTooltip({ x: e.clientX, y: e.clientY })}
+      onMouseLeave={() => setTooltip(null)}
+    >
       {/* Плановая полоска */}
       <div
         className="absolute rounded-sm"
@@ -79,6 +98,22 @@ export default function GanttBar({
             opacity: 0.68,
             zIndex: 2,
           }}
+        />
+      )}
+
+      {/* Тултип */}
+      {tooltip && (
+        <Tooltip
+          taskName={taskName}
+          status={status}
+          planStart={planStart}
+          planEnd={planEnd}
+          factStart={factStart}
+          factEnd={factEnd}
+          productName={productName}
+          manufacturerName={manufacturerName}
+          x={tooltip.x}
+          y={tooltip.y}
         />
       )}
     </div>

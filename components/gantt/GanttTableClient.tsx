@@ -204,6 +204,9 @@ export default function GanttTableClient({ tasks: initialTasks }: { tasks: Task[
                 color="#378ADD"
                 rangeStart={rangeStart}
                 rangeEnd={rangeEnd}
+                taskName={task.template_tasks?.name ?? ""}
+                productName={task.products?.name ?? ""}
+                manufacturerName={task.manufacturers?.name ?? ""}
               />
             ) : (
               <div style={{ height: 32, background: "#f5f5f5" }} />

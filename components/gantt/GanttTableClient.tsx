@@ -13,7 +13,7 @@ type Task = {
   fact_start: string | null;
   fact_end: string | null;
   template_tasks: { name: string; order: number | null } | null;
-  products: { name: string } | null;
+  products: { name: string; image_url: string | null } | null;
   manufacturers: { name: string } | null;
 };
 
@@ -93,6 +93,7 @@ export default function GanttTableClient({ tasks: initialTasks }: { tasks: Task[
   const [showManufacturer, setShowManufacturer] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string[]>([]);
   const [groupMode, setGroupMode] = useState<"product" | "manufacturer">("product");
+  const [imgTooltip, setImgTooltip] = useState<{ url: string; x: number; y: number } | null>(null);
 
   async function updateDate(id: string, field: "plan_start" | "plan_end", value: string) {
     const { error } = await supabase
@@ -232,6 +233,7 @@ export default function GanttTableClient({ tasks: initialTasks }: { tasks: Task[
   };
 
   return (
+    <>
     <div className="flex flex-col gap-3">
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div className="flex items-center gap-1 rounded-lg border border-zinc-200 dark:border-zinc-700 p-0.5">
@@ -342,12 +344,28 @@ export default function GanttTableClient({ tasks: initialTasks }: { tasks: Task[
                       {mfName}
                     </td>
                   </tr>
-                  {Array.from(productMap.entries()).map(([productName, productTasks]) => (
+                  {Array.from(productMap.entries()).map(([productName, productTasks]) => {
+                    const imageUrlMf = productTasks[0]?.products?.image_url ?? null;
+                    return (
                     <React.Fragment key={`${mfName}-${productName}`}>
                       {/* Подзаголовок продукта */}
                       <tr>
                         <td colSpan={totalCols} className="py-1.5 text-xs text-zinc-500 italic" style={{ background: "#f8f8f8", paddingLeft: 32 }}>
                           {productName}
+                          {imageUrlMf && (
+                            <span
+                              className="ml-2 cursor-pointer select-none not-italic"
+                              onClick={(e) =>
+                                setImgTooltip(
+                                  imgTooltip?.url === imageUrlMf
+                                    ? null
+                                    : { url: imageUrlMf, x: e.clientX, y: e.clientY }
+                                )
+                              }
+                            >
+                              📷
+                            </span>
+                          )}
                         </td>
                       </tr>
                       {productTasks.map((task) => (
@@ -356,11 +374,14 @@ export default function GanttTableClient({ tasks: initialTasks }: { tasks: Task[
                         </tr>
                       ))}
                     </React.Fragment>
-                  ))}
+                    );
+                  })}
                 </React.Fragment>
               ))
             ) : (
-              Array.from(grouped.entries()).map(([productName, mfMap]) => (
+              Array.from(grouped.entries()).map(([productName, mfMap]) => {
+                const imageUrl = Array.from(mfMap.values()).flat()[0]?.products?.image_url ?? null;
+                return (
                 <React.Fragment key={productName}>
                   {/* Заголовок продукта */}
                   <tr>
@@ -370,6 +391,20 @@ export default function GanttTableClient({ tasks: initialTasks }: { tasks: Task[
                       style={{ background: "#f0f0f0" }}
                     >
                       {productName}
+                      {imageUrl && (
+                        <span
+                          className="ml-2 cursor-pointer select-none"
+                          onClick={(e) =>
+                            setImgTooltip(
+                              imgTooltip?.url === imageUrl
+                                ? null
+                                : { url: imageUrl, x: e.clientX, y: e.clientY }
+                            )
+                          }
+                        >
+                          📷
+                        </span>
+                      )}
                     </td>
                   </tr>
 
@@ -395,12 +430,38 @@ export default function GanttTableClient({ tasks: initialTasks }: { tasks: Task[
                     </React.Fragment>
                   ))}
                 </React.Fragment>
-              ))
+                );
+              })
             )}
           </tbody>
 
         </table>
       </div>
     </div>
+
+    {/* Тултип с картинкой продукта */}
+    {imgTooltip && (
+      <>
+        {/* Overlay для закрытия по клику вне */}
+        <div
+          className="fixed inset-0"
+          style={{ zIndex: 9998 }}
+          onClick={() => setImgTooltip(null)}
+        />
+        <div
+          className="fixed bg-white border border-gray-200 rounded-lg shadow-xl p-2"
+          style={{
+            left: imgTooltip.x + 12,
+            top: imgTooltip.y - 12,
+            transform: "translateY(-100%)",
+            zIndex: 9999,
+            pointerEvents: "none",
+          }}
+        >
+          <img src={imgTooltip.url} alt="Фото продукта" width={200} className="rounded" />
+        </div>
+      </>
+    )}
+    </>
   );
 }

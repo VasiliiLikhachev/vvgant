@@ -1,12 +1,15 @@
 "use client";
 
 import { useState } from "react";
+import GanttBar from "./GanttBar";
 
 type Task = {
   id: string;
   status: string | null;
   plan_start: string | null;
   plan_end: string | null;
+  fact_start: string | null;
+  fact_end: string | null;
   template_tasks: { name: string; order: number | null } | null;
 };
 
@@ -52,6 +55,17 @@ function ToggleButton({
 export default function GanttTableClient({ tasks }: { tasks: Task[] }) {
   const [showPlanStart, setShowPlanStart] = useState(true);
   const [showPlanEnd, setShowPlanEnd] = useState(true);
+
+  const rangeStart = tasks
+    .map((t) => t.plan_start)
+    .filter(Boolean)
+    .sort()[0] ?? new Date().toISOString().slice(0, 10);
+
+  const rangeEnd = tasks
+    .map((t) => t.plan_end)
+    .filter(Boolean)
+    .sort()
+    .at(-1) ?? new Date().toISOString().slice(0, 10);
 
   return (
     <div className="flex flex-col gap-3">
@@ -123,10 +137,23 @@ export default function GanttTableClient({ tasks }: { tasks: Task[] }) {
                     </td>
                   )}
                   <td className="px-4 py-3 w-full">
-                    <div
-                      className="relative"
-                      style={{ height: 32, background: "#f5f5f5" }}
-                    />
+                    {task.plan_start && task.plan_end ? (
+                      <GanttBar
+                        planStart={task.plan_start}
+                        planEnd={task.plan_end}
+                        factStart={task.fact_start}
+                        factEnd={task.fact_end}
+                        status={task.status ?? "Не начата"}
+                        color="#378ADD"
+                        rangeStart={rangeStart}
+                        rangeEnd={rangeEnd}
+                      />
+                    ) : (
+                      <div
+                        className="relative"
+                        style={{ height: 32, background: "#f5f5f5" }}
+                      />
+                    )}
                   </td>
                 </tr>
               ))

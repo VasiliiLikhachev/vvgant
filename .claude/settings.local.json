@@ -3,7 +3,10 @@
     "allow": [
       "Bash(npx create-next-app@latest:*)",
       "Bash(mv CLAUDE.md /tmp/CLAUDE.md.bak)",
-      "Bash(mv /tmp/CLAUDE.md.bak CLAUDE.md)"
+      "Bash(mv /tmp/CLAUDE.md.bak CLAUDE.md)",
+      "Bash(npm install:*)",
+      "Bash(cmd:*)",
+      "Bash(npm run:*)"
     ]
   }
 }

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import GanttBar from "./GanttBar";
 import { supabase } from "@/lib/supabase";
+import FilterDropdown from "@/components/filters/FilterDropdown";
 
 type Task = {
   id: string;
@@ -79,6 +80,7 @@ export default function GanttTableClient({ tasks: initialTasks }: { tasks: Task[
   const [tasks, setTasks] = useState<Task[]>(initialTasks);
   const [showPlanStart, setShowPlanStart] = useState(true);
   const [showPlanEnd, setShowPlanEnd] = useState(true);
+  const [statusFilter, setStatusFilter] = useState<string[]>([]);
 
   async function updateDate(id: string, field: "plan_start" | "plan_end", value: string) {
     const { error } = await supabase
@@ -93,6 +95,10 @@ export default function GanttTableClient({ tasks: initialTasks }: { tasks: Task[
       prev.map((t) => (t.id === id ? { ...t, [field]: value } : t))
     );
   }
+
+  const filteredTasks = statusFilter.length === 0
+    ? tasks
+    : tasks.filter((t) => t.status !== null && statusFilter.includes(t.status));
 
   const rangeStart = tasks
     .map((t) => t.plan_start)
@@ -141,20 +147,27 @@ export default function GanttTableClient({ tasks: initialTasks }: { tasks: Task[
           <thead className="text-zinc-600 dark:text-zinc-400 uppercase text-xs tracking-wide">
             {/* Строка 1: заголовки колонок */}
             <tr>
-              <th className="px-4 font-medium" style={{ position: "sticky", top: 0, zIndex: 10, background: "white", height: 48, boxShadow: "0 1px 0 #e5e7eb" }}>Название задачи</th>
-              <th className="px-4 font-medium" style={{ position: "sticky", top: 0, zIndex: 10, background: "white", height: 48, boxShadow: "0 1px 0 #e5e7eb" }}>Статус</th>
+              <th className="px-4 font-medium" style={{ position: "sticky", top: 0, zIndex: 1, background: "white", height: 48, boxShadow: "0 1px 0 #e5e7eb" }}>Название задачи</th>
+              <th className="px-4 font-medium" style={{ position: "sticky", top: 0, zIndex: 1, background: "white", height: 48, boxShadow: "0 1px 0 #e5e7eb" }}>
+                <FilterDropdown
+                  label="Статус"
+                  options={["Не начата", "В процессе", "Готово", "Задержка"]}
+                  selected={statusFilter}
+                  onApply={setStatusFilter}
+                />
+              </th>
               {showPlanStart && (
-                <th className="px-4 font-medium" style={{ position: "sticky", top: 0, zIndex: 10, background: "white", height: 48, boxShadow: "0 1px 0 #e5e7eb" }}>Дата начала (план)</th>
+                <th className="px-4 font-medium" style={{ position: "sticky", top: 0, zIndex: 1, background: "white", height: 48, boxShadow: "0 1px 0 #e5e7eb" }}>Дата начала (план)</th>
               )}
               {showPlanEnd && (
-                <th className="px-4 font-medium" style={{ position: "sticky", top: 0, zIndex: 10, background: "white", height: 48, boxShadow: "0 1px 0 #e5e7eb" }}>Дата конца (план)</th>
+                <th className="px-4 font-medium" style={{ position: "sticky", top: 0, zIndex: 1, background: "white", height: 48, boxShadow: "0 1px 0 #e5e7eb" }}>Дата конца (план)</th>
               )}
-              <th className="px-4 font-medium w-full" style={{ position: "sticky", top: 0, zIndex: 10, background: "white", height: 48, boxShadow: "0 1px 0 #e5e7eb" }}>Гант</th>
+              <th className="px-4 font-medium w-full" style={{ position: "sticky", top: 0, zIndex: 1, background: "white", height: 48, boxShadow: "0 1px 0 #e5e7eb" }}>Гант</th>
             </tr>
             {/* Строка 2: шкала дат */}
             <tr style={{ borderBottom: "1px solid #e5e7eb" }}>
-              <th colSpan={2 + (showPlanStart ? 1 : 0) + (showPlanEnd ? 1 : 0)} style={{ position: "sticky", top: 48, zIndex: 10, background: "white" }} />
-              <th className="px-4 py-1 w-full font-normal" style={{ position: "sticky", top: 48, zIndex: 10, background: "white" }}>
+              <th colSpan={2 + (showPlanStart ? 1 : 0) + (showPlanEnd ? 1 : 0)} style={{ background: "white" }} />
+              <th className="px-4 py-1 w-full font-normal" style={{ position: "sticky", top: 48, zIndex: 1, background: "white" }}>
                 <div className="relative w-full" style={{ height: 24 }}>
                   {mondays.map((iso) => {
                     const left = toPercent(iso, rangeStart, rangeEnd);
@@ -189,7 +202,7 @@ export default function GanttTableClient({ tasks: initialTasks }: { tasks: Task[
                 </td>
               </tr>
             ) : (
-              tasks.map((task) => (
+              filteredTasks.map((task) => (
                 <tr
                   key={task.id}
                   className="bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"

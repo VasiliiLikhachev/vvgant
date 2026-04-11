@@ -54,12 +54,31 @@ function calcDates(
   return result;
 }
 
+type ModalState = {
+  open: boolean;
+  productName: string;
+  startDate: string;
+  manufacturerName: string;
+  creating: boolean;
+  error: string | null;
+};
+
+const MODAL_INIT: ModalState = {
+  open: false,
+  productName: "",
+  startDate: new Date().toISOString().slice(0, 10),
+  manufacturerName: "",
+  creating: false,
+  error: null,
+};
+
 export default function TemplatePage() {
   const [tasks, setTasks] = useState<TemplateTask[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [applying, setApplying] = useState(false);
   const [statusMsg, setStatusMsg] = useState<string | null>(null);
+  const [modal, setModal] = useState<ModalState>(MODAL_INIT);
 
   // Отслеживаем, какие id были изменены
   const dirtyIds = useRef<Set<number>>(new Set());
@@ -209,6 +228,72 @@ export default function TemplatePage() {
     setApplying(false);
   }
 
+  async function createProduct() {
+    const { productName, startDate, manufacturerName } = modal;
+    if (!productName.trim()) {
+      setModal((m) => ({ ...m, error: "Введите название продукта" }));
+      return;
+    }
+    if (!startDate) {
+      setModal((m) => ({ ...m, error: "Выберите дату старта" }));
+      return;
+    }
+    if (!manufacturerName.trim()) {
+      setModal((m) => ({ ...m, error: "Введите производителя" }));
+      return;
+    }
+
+    setModal((m) => ({ ...m, creating: true, error: null }));
+
+    // 1. INSERT product
+    const { data: product, error: pErr } = await supabase
+      .from("products")
+      .insert({ name: productName.trim() })
+      .select("id")
+      .single();
+    if (pErr) {
+      setModal((m) => ({ ...m, creating: false, error: pErr.message }));
+      return;
+    }
+
+    // 2. INSERT manufacturer
+    const { data: manufacturer, error: mErr } = await supabase
+      .from("manufacturers")
+      .insert({ product_id: product.id, name: manufacturerName.trim() })
+      .select("id")
+      .single();
+    if (mErr) {
+      setModal((m) => ({ ...m, creating: false, error: mErr.message }));
+      return;
+    }
+
+    // 3. Пересчёт дат
+    const dateMap = calcDates(tasks, startDate);
+
+    // 4. INSERT tasks
+    const rows = tasks.map((t) => {
+      const dates = dateMap.get(t.id) ?? { plan_start: startDate, plan_end: startDate };
+      return {
+        product_id: product.id,
+        manufacturer_id: manufacturer.id,
+        template_task_id: t.id,
+        plan_start: dates.plan_start,
+        plan_end: dates.plan_end,
+        status: "Не начата",
+      };
+    });
+
+    const { error: tErr } = await supabase.from("tasks").insert(rows);
+    if (tErr) {
+      setModal((m) => ({ ...m, creating: false, error: tErr.message }));
+      return;
+    }
+
+    setModal(MODAL_INIT);
+    setStatusMsg("Продукт создан");
+    setTimeout(() => setStatusMsg(null), 3000);
+  }
+
   async function addTask() {
     const maxOrder = tasks.reduce((m, t) => Math.max(m, t.order ?? 0), 0);
     const { data, error } = await supabase
@@ -272,6 +357,13 @@ export default function TemplatePage() {
             className="px-4 py-2 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-500 disabled:opacity-50 transition-colors"
           >
             {applying ? "Применяется…" : "Применить к продуктам"}
+          </button>
+          <button
+            onClick={() => setModal({ ...MODAL_INIT, open: true })}
+            disabled={saving || applying}
+            className="px-4 py-2 text-sm font-medium bg-green-600 text-white rounded-lg hover:bg-green-500 disabled:opacity-50 transition-colors"
+          >
+            + Создать продукт
           </button>
         </div>
       </div>
@@ -360,6 +452,80 @@ export default function TemplatePage() {
       >
         + Добавить этап
       </button>
+
+      {/* Модалка создания продукта */}
+      {modal.open && (
+        <>
+          {/* Overlay */}
+          <div
+            className="fixed inset-0 bg-black/40 z-40"
+            onClick={() => !modal.creating && setModal(MODAL_INIT)}
+          />
+
+          {/* Окно */}
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6">
+              <h2 className="text-lg font-bold text-zinc-900 mb-5">Создать продукт</h2>
+
+              <div className="space-y-4">
+                <label className="block">
+                  <span className="text-sm font-medium text-zinc-700">Название продукта</span>
+                  <input
+                    type="text"
+                    value={modal.productName}
+                    onChange={(e) => setModal((m) => ({ ...m, productName: e.target.value }))}
+                    className="mt-1 w-full px-3 py-2 border border-zinc-300 rounded-lg text-sm focus:outline-none focus:border-zinc-500 transition-colors"
+                    placeholder="Например: Творог клубничный"
+                    autoFocus
+                  />
+                </label>
+
+                <label className="block">
+                  <span className="text-sm font-medium text-zinc-700">Дата старта</span>
+                  <input
+                    type="date"
+                    value={modal.startDate}
+                    onChange={(e) => setModal((m) => ({ ...m, startDate: e.target.value }))}
+                    className="mt-1 w-full px-3 py-2 border border-zinc-300 rounded-lg text-sm focus:outline-none focus:border-zinc-500 transition-colors"
+                  />
+                </label>
+
+                <label className="block">
+                  <span className="text-sm font-medium text-zinc-700">Производитель</span>
+                  <input
+                    type="text"
+                    value={modal.manufacturerName}
+                    onChange={(e) => setModal((m) => ({ ...m, manufacturerName: e.target.value }))}
+                    className="mt-1 w-full px-3 py-2 border border-zinc-300 rounded-lg text-sm focus:outline-none focus:border-zinc-500 transition-colors"
+                    placeholder="Например: ООО Молочный завод"
+                  />
+                </label>
+
+                {modal.error && (
+                  <p className="text-sm text-red-500">{modal.error}</p>
+                )}
+              </div>
+
+              <div className="flex justify-end gap-2 mt-6">
+                <button
+                  onClick={() => setModal(MODAL_INIT)}
+                  disabled={modal.creating}
+                  className="px-4 py-2 text-sm font-medium border border-zinc-300 text-zinc-700 rounded-lg hover:border-zinc-400 disabled:opacity-50 transition-colors"
+                >
+                  Отмена
+                </button>
+                <button
+                  onClick={createProduct}
+                  disabled={modal.creating}
+                  className="px-4 py-2 text-sm font-medium bg-green-600 text-white rounded-lg hover:bg-green-500 disabled:opacity-50 transition-colors"
+                >
+                  {modal.creating ? "Создаётся…" : "Создать"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

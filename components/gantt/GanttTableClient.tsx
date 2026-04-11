@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import GanttBar from "./GanttBar";
+import { supabase } from "@/lib/supabase";
 
 type Task = {
   id: string;
@@ -20,14 +21,6 @@ const STATUS_LABELS: Record<string, string> = {
   "Задержка": "Задержка",
 };
 
-function formatDate(date: string | null): string {
-  if (!date) return "—";
-  return new Date(date).toLocaleDateString("ru-RU", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  });
-}
 
 function ToggleButton({
   active,
@@ -82,9 +75,24 @@ function formatDateShort(iso: string): string {
   return d.toLocaleDateString("ru-RU", { day: "2-digit", month: "2-digit" });
 }
 
-export default function GanttTableClient({ tasks }: { tasks: Task[] }) {
+export default function GanttTableClient({ tasks: initialTasks }: { tasks: Task[] }) {
+  const [tasks, setTasks] = useState<Task[]>(initialTasks);
   const [showPlanStart, setShowPlanStart] = useState(true);
   const [showPlanEnd, setShowPlanEnd] = useState(true);
+
+  async function updateDate(id: string, field: "plan_start" | "plan_end", value: string) {
+    const { error } = await supabase
+      .from("tasks")
+      .update({ [field]: value })
+      .eq("id", id);
+    if (error) {
+      console.error("Ошибка обновления даты:", error.message);
+      return;
+    }
+    setTasks((prev) =>
+      prev.map((t) => (t.id === id ? { ...t, [field]: value } : t))
+    );
+  }
 
   const rangeStart = tasks
     .map((t) => t.plan_start)
@@ -195,13 +203,23 @@ export default function GanttTableClient({ tasks }: { tasks: Task[] }) {
                       : "—"}
                   </td>
                   {showPlanStart && (
-                    <td className="px-4 py-3 text-zinc-600 dark:text-zinc-400">
-                      {formatDate(task.plan_start)}
+                    <td className="px-4 py-2">
+                      <input
+                        type="date"
+                        value={task.plan_start ?? ""}
+                        onChange={(e) => updateDate(task.id, "plan_start", e.target.value)}
+                        className="text-sm text-zinc-700 dark:text-zinc-300 bg-transparent border border-zinc-200 dark:border-zinc-700 rounded px-2 py-1 focus:outline-none focus:border-zinc-400"
+                      />
                     </td>
                   )}
                   {showPlanEnd && (
-                    <td className="px-4 py-3 text-zinc-600 dark:text-zinc-400">
-                      {formatDate(task.plan_end)}
+                    <td className="px-4 py-2">
+                      <input
+                        type="date"
+                        value={task.plan_end ?? ""}
+                        onChange={(e) => updateDate(task.id, "plan_end", e.target.value)}
+                        className="text-sm text-zinc-700 dark:text-zinc-300 bg-transparent border border-zinc-200 dark:border-zinc-700 rounded px-2 py-1 focus:outline-none focus:border-zinc-400"
+                      />
                     </td>
                   )}
                   <td className="px-4 py-3 w-full">

@@ -85,13 +85,14 @@ export default function GanttTableClient({ tasks }: { tasks: Task[] }) {
               {showPlanEnd && (
                 <th className="px-4 py-3 font-medium">Дата конца (план)</th>
               )}
+              <th className="px-4 py-3 font-medium w-full">Гант</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-zinc-200 dark:divide-zinc-700">
             {tasks.length === 0 ? (
               <tr>
                 <td
-                  colSpan={2 + (showPlanStart ? 1 : 0) + (showPlanEnd ? 1 : 0)}
+                  colSpan={3 + (showPlanStart ? 1 : 0) + (showPlanEnd ? 1 : 0)}
                   className="px-4 py-8 text-center text-zinc-400 dark:text-zinc-500"
                 >
                   Задачи не найдены
@@ -121,6 +122,12 @@ export default function GanttTableClient({ tasks }: { tasks: Task[] }) {
                       {formatDate(task.plan_end)}
                     </td>
                   )}
+                  <td className="px-4 py-3 w-full">
+                    <div
+                      className="relative"
+                      style={{ height: 32, background: "#f5f5f5" }}
+                    />
+                  </td>
                 </tr>
               ))
             )}

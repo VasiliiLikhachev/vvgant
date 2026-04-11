@@ -89,7 +89,10 @@ export default function GanttTableClient({ tasks: initialTasks }: { tasks: Task[
   const [tasks, setTasks] = useState<Task[]>(initialTasks);
   const [showPlanStart, setShowPlanStart] = useState(true);
   const [showPlanEnd, setShowPlanEnd] = useState(true);
+  const [showProduct, setShowProduct] = useState(false);
+  const [showManufacturer, setShowManufacturer] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string[]>([]);
+  const [groupMode, setGroupMode] = useState<"product" | "manufacturer">("product");
 
   async function updateDate(id: string, field: "plan_start" | "plan_end", value: string) {
     const { error } = await supabase
@@ -124,7 +127,98 @@ export default function GanttTableClient({ tasks: initialTasks }: { tasks: Task[
   const todayLeft = todayInRange ? toPercent(todayIso, rangeStart, rangeEnd) : null;
 
   const grouped = groupTasks(filteredTasks);
-  const totalCols = 3 + (showPlanStart ? 1 : 0) + (showPlanEnd ? 1 : 0);
+
+  // Группировка по производителю → продукту, задачи отсортированы по order
+  const groupedByMf = filteredTasks.reduce<Map<string, Map<string, Task[]>>>((acc, task) => {
+    const mf = task.manufacturers?.name ?? "Без производителя";
+    const product = task.products?.name ?? "Без продукта";
+    if (!acc.has(mf)) acc.set(mf, new Map());
+    const productMap = acc.get(mf)!;
+    if (!productMap.has(product)) productMap.set(product, []);
+    productMap.get(product)!.push(task);
+    return acc;
+  }, new Map());
+  // Сортируем задачи внутри каждой группы по order
+  for (const productMap of groupedByMf.values()) {
+    for (const [key, taskList] of productMap.entries()) {
+      productMap.set(key, [...taskList].sort(
+        (a, b) => (a.template_tasks?.order ?? 0) - (b.template_tasks?.order ?? 0)
+      ));
+    }
+  }
+
+  const totalCols = 3
+    + (showPlanStart ? 1 : 0)
+    + (showPlanEnd ? 1 : 0)
+    + (showProduct ? 1 : 0)
+    + (showManufacturer ? 1 : 0);
+
+  function renderTaskCells(task: Task, nameIndent: number) {
+    return (
+      <>
+        <td className="py-3 font-medium text-zinc-900 dark:text-zinc-100" style={{ paddingLeft: nameIndent, paddingRight: 16 }}>
+          {task.template_tasks?.name ?? "—"}
+        </td>
+        <td className="px-4 py-3 text-zinc-600 dark:text-zinc-400">
+          {task.status ? (STATUS_LABELS[task.status] ?? task.status) : "—"}
+        </td>
+        {showProduct && (
+          <td className="px-4 py-3 text-zinc-600 dark:text-zinc-400">
+            {task.products?.name ?? "—"}
+          </td>
+        )}
+        {showManufacturer && (
+          <td className="px-4 py-3 text-zinc-600 dark:text-zinc-400">
+            {task.manufacturers?.name ?? "—"}
+          </td>
+        )}
+        {showPlanStart && (
+          <td className="px-4 py-2">
+            <input
+              type="date"
+              value={task.plan_start ?? ""}
+              onChange={(e) => updateDate(task.id, "plan_start", e.target.value)}
+              className="text-sm text-zinc-700 dark:text-zinc-300 bg-transparent border border-zinc-200 dark:border-zinc-700 rounded px-2 py-1 focus:outline-none focus:border-zinc-400"
+            />
+          </td>
+        )}
+        {showPlanEnd && (
+          <td className="px-4 py-2">
+            <input
+              type="date"
+              value={task.plan_end ?? ""}
+              onChange={(e) => updateDate(task.id, "plan_end", e.target.value)}
+              className="text-sm text-zinc-700 dark:text-zinc-300 bg-transparent border border-zinc-200 dark:border-zinc-700 rounded px-2 py-1 focus:outline-none focus:border-zinc-400"
+            />
+          </td>
+        )}
+        <td className="px-4 py-3 w-full">
+          <div className="relative">
+            {task.plan_start && task.plan_end ? (
+              <GanttBar
+                planStart={task.plan_start}
+                planEnd={task.plan_end}
+                factStart={task.fact_start}
+                factEnd={task.fact_end}
+                status={task.status ?? "Не начата"}
+                color="#378ADD"
+                rangeStart={rangeStart}
+                rangeEnd={rangeEnd}
+              />
+            ) : (
+              <div style={{ height: 32, background: "#f5f5f5" }} />
+            )}
+            {todayLeft !== null && (
+              <div
+                className="absolute inset-y-0 w-px bg-red-500 pointer-events-none"
+                style={{ left: `${todayLeft}%`, zIndex: 3 }}
+              />
+            )}
+          </div>
+        </td>
+      </>
+    );
+  }
 
   const thSticky0: React.CSSProperties = {
     position: "sticky", top: 0, zIndex: 1, background: "white",
@@ -136,14 +230,44 @@ export default function GanttTableClient({ tasks: initialTasks }: { tasks: Task[
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex items-center gap-2">
-        <span className="text-xs text-zinc-500 dark:text-zinc-400 mr-1">Колонки:</span>
-        <ToggleButton active={showPlanStart} onClick={() => setShowPlanStart((v) => !v)}>
-          Дата начала (план)
-        </ToggleButton>
-        <ToggleButton active={showPlanEnd} onClick={() => setShowPlanEnd((v) => !v)}>
-          Дата конца (план)
-        </ToggleButton>
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <div className="flex items-center gap-1 rounded-lg border border-zinc-200 dark:border-zinc-700 p-0.5">
+          <button
+            onClick={() => setGroupMode("product")}
+            className={`px-3 py-1.5 rounded text-xs font-medium transition-colors ${
+              groupMode === "product"
+                ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900"
+                : "text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
+            }`}
+          >
+            По продукту
+          </button>
+          <button
+            onClick={() => setGroupMode("manufacturer")}
+            className={`px-3 py-1.5 rounded text-xs font-medium transition-colors ${
+              groupMode === "manufacturer"
+                ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900"
+                : "text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
+            }`}
+          >
+            По производителю
+          </button>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-zinc-500 dark:text-zinc-400 mr-1">Колонки:</span>
+          <ToggleButton active={showProduct} onClick={() => setShowProduct((v) => !v)}>
+            Продукт
+          </ToggleButton>
+          <ToggleButton active={showManufacturer} onClick={() => setShowManufacturer((v) => !v)}>
+            Производитель
+          </ToggleButton>
+          <ToggleButton active={showPlanStart} onClick={() => setShowPlanStart((v) => !v)}>
+            Дата начала (план)
+          </ToggleButton>
+          <ToggleButton active={showPlanEnd} onClick={() => setShowPlanEnd((v) => !v)}>
+            Дата конца (план)
+          </ToggleButton>
+        </div>
       </div>
 
       <div
@@ -163,6 +287,12 @@ export default function GanttTableClient({ tasks: initialTasks }: { tasks: Task[
                   onApply={setStatusFilter}
                 />
               </th>
+              {showProduct && (
+                <th className="px-4 font-medium" style={thSticky0}>Продукт</th>
+              )}
+              {showManufacturer && (
+                <th className="px-4 font-medium" style={thSticky0}>Производитель</th>
+              )}
               {showPlanStart && (
                 <th className="px-4 font-medium" style={thSticky0}>Дата начала (план)</th>
               )}
@@ -200,6 +330,32 @@ export default function GanttTableClient({ tasks: initialTasks }: { tasks: Task[
                   Задачи не найдены
                 </td>
               </tr>
+            ) : groupMode === "manufacturer" ? (
+              Array.from(groupedByMf.entries()).map(([mfName, productMap]) => (
+                <React.Fragment key={mfName}>
+                  {/* Заголовок производителя */}
+                  <tr>
+                    <td colSpan={totalCols} className="px-4 py-2 font-bold text-zinc-800 text-sm" style={{ background: "#f0f0f0" }}>
+                      {mfName}
+                    </td>
+                  </tr>
+                  {Array.from(productMap.entries()).map(([productName, productTasks]) => (
+                    <React.Fragment key={`${mfName}-${productName}`}>
+                      {/* Подзаголовок продукта */}
+                      <tr>
+                        <td colSpan={totalCols} className="py-1.5 text-xs text-zinc-500 italic" style={{ background: "#f8f8f8", paddingLeft: 32 }}>
+                          {productName}
+                        </td>
+                      </tr>
+                      {productTasks.map((task) => (
+                        <tr key={task.id} className="bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors">
+                          {renderTaskCells(task, 48)}
+                        </tr>
+                      ))}
+                    </React.Fragment>
+                  ))}
+                </React.Fragment>
+              ))
             ) : (
               Array.from(grouped.entries()).map(([productName, mfMap]) => (
                 <React.Fragment key={productName}>
@@ -229,60 +385,8 @@ export default function GanttTableClient({ tasks: initialTasks }: { tasks: Task[
 
                       {/* Строки задач */}
                       {mfTasks.map((task) => (
-                        <tr
-                          key={task.id}
-                          className="bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
-                        >
-                          <td className="px-4 py-3 font-medium text-zinc-900 dark:text-zinc-100" style={{ paddingLeft: 48 }}>
-                            {task.template_tasks?.name ?? "—"}
-                          </td>
-                          <td className="px-4 py-3 text-zinc-600 dark:text-zinc-400">
-                            {task.status ? (STATUS_LABELS[task.status] ?? task.status) : "—"}
-                          </td>
-                          {showPlanStart && (
-                            <td className="px-4 py-2">
-                              <input
-                                type="date"
-                                value={task.plan_start ?? ""}
-                                onChange={(e) => updateDate(task.id, "plan_start", e.target.value)}
-                                className="text-sm text-zinc-700 dark:text-zinc-300 bg-transparent border border-zinc-200 dark:border-zinc-700 rounded px-2 py-1 focus:outline-none focus:border-zinc-400"
-                              />
-                            </td>
-                          )}
-                          {showPlanEnd && (
-                            <td className="px-4 py-2">
-                              <input
-                                type="date"
-                                value={task.plan_end ?? ""}
-                                onChange={(e) => updateDate(task.id, "plan_end", e.target.value)}
-                                className="text-sm text-zinc-700 dark:text-zinc-300 bg-transparent border border-zinc-200 dark:border-zinc-700 rounded px-2 py-1 focus:outline-none focus:border-zinc-400"
-                              />
-                            </td>
-                          )}
-                          <td className="px-4 py-3 w-full">
-                            <div className="relative">
-                              {task.plan_start && task.plan_end ? (
-                                <GanttBar
-                                  planStart={task.plan_start}
-                                  planEnd={task.plan_end}
-                                  factStart={task.fact_start}
-                                  factEnd={task.fact_end}
-                                  status={task.status ?? "Не начата"}
-                                  color="#378ADD"
-                                  rangeStart={rangeStart}
-                                  rangeEnd={rangeEnd}
-                                />
-                              ) : (
-                                <div style={{ height: 32, background: "#f5f5f5" }} />
-                              )}
-                              {todayLeft !== null && (
-                                <div
-                                  className="absolute inset-y-0 w-px bg-red-500 pointer-events-none"
-                                  style={{ left: `${todayLeft}%`, zIndex: 3 }}
-                                />
-                              )}
-                            </div>
-                          </td>
+                        <tr key={task.id} className="bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors">
+                          {renderTaskCells(task, 48)}
                         </tr>
                       ))}
                     </React.Fragment>
@@ -291,6 +395,7 @@ export default function GanttTableClient({ tasks: initialTasks }: { tasks: Task[
               ))
             )}
           </tbody>
+
         </table>
       </div>
     </div>

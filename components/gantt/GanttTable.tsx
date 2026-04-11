@@ -4,7 +4,9 @@ import GanttTableClient from "./GanttTableClient";
 export default async function GanttTable() {
   const { data: tasks, error } = await supabase
     .from("tasks")
-    .select("id, status, plan_start, plan_end, fact_start, fact_end, template_tasks(name, order)");
+    .select(
+      "id, status, plan_start, plan_end, fact_start, fact_end, template_tasks(name, order), products(name), manufacturers(name)"
+    );
 
   if (error) {
     console.error("GanttTable fetch error:", error.message);

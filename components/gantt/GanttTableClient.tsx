@@ -157,24 +157,24 @@ export default function GanttTableClient({ tasks: initialTasks }: { tasks: Task[
   function renderTaskCells(task: Task, nameIndent: number) {
     return (
       <>
-        <td className="py-3 font-medium text-zinc-900 dark:text-zinc-100" style={{ paddingLeft: nameIndent, paddingRight: 16 }}>
+        <td className="py-3 font-medium text-zinc-900 dark:text-zinc-100 overflow-hidden text-ellipsis" style={{ paddingLeft: nameIndent, paddingRight: 16, minWidth: 200 }}>
           {task.template_tasks?.name ?? "—"}
         </td>
-        <td className="px-4 py-3 text-zinc-600 dark:text-zinc-400">
+        <td className="px-4 py-3 text-zinc-600 dark:text-zinc-400" style={{ width: 120 }}>
           {task.status ? (STATUS_LABELS[task.status] ?? task.status) : "—"}
         </td>
         {showProduct && (
-          <td className="px-4 py-3 text-zinc-600 dark:text-zinc-400">
+          <td className="px-4 py-3 text-zinc-600 dark:text-zinc-400 overflow-hidden text-ellipsis" style={{ width: 150 }}>
             {task.products?.name ?? "—"}
           </td>
         )}
         {showManufacturer && (
-          <td className="px-4 py-3 text-zinc-600 dark:text-zinc-400">
+          <td className="px-4 py-3 text-zinc-600 dark:text-zinc-400 overflow-hidden text-ellipsis" style={{ width: 150 }}>
             {task.manufacturers?.name ?? "—"}
           </td>
         )}
         {showPlanStart && (
-          <td className="px-4 py-2">
+          <td className="px-4 py-2" style={{ width: 140 }}>
             <input
               type="date"
               value={task.plan_start ?? ""}
@@ -184,7 +184,7 @@ export default function GanttTableClient({ tasks: initialTasks }: { tasks: Task[
           </td>
         )}
         {showPlanEnd && (
-          <td className="px-4 py-2">
+          <td className="px-4 py-2" style={{ width: 140 }}>
             <input
               type="date"
               value={task.plan_end ?? ""}
@@ -193,7 +193,7 @@ export default function GanttTableClient({ tasks: initialTasks }: { tasks: Task[
             />
           </td>
         )}
-        <td className="px-4 py-3 w-full">
+        <td className="px-4 py-3" style={{ minWidth: 400 }}>
           <div className="relative">
             {task.plan_start && task.plan_end ? (
               <GanttBar
@@ -276,14 +276,14 @@ export default function GanttTableClient({ tasks: initialTasks }: { tasks: Task[
       </div>
 
       <div
-        className="w-full overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-700"
+        className="w-full rounded-lg border border-zinc-200 dark:border-zinc-700"
       >
-        <table className="w-full text-sm text-left">
+        <table className="w-full text-sm text-left" style={{ tableLayout: "fixed", width: "100%" }}>
           <thead className="text-zinc-600 dark:text-zinc-400 uppercase text-xs tracking-wide">
             {/* Строка 1: заголовки колонок */}
             <tr>
-              <th className="px-4 font-medium" style={thSticky0}>Название задачи</th>
-              <th className="px-4 font-medium" style={thSticky0}>
+              <th className="px-4 font-medium" style={{ ...thSticky0, minWidth: 200 }}>Название задачи</th>
+              <th className="px-4 font-medium" style={{ ...thSticky0, width: 120 }}>
                 <FilterDropdown
                   label="Статус"
                   options={["Не начата", "В процессе", "Готово", "Задержка"]}
@@ -292,22 +292,22 @@ export default function GanttTableClient({ tasks: initialTasks }: { tasks: Task[
                 />
               </th>
               {showProduct && (
-                <th className="px-4 font-medium" style={thSticky0}>Продукт</th>
+                <th className="px-4 font-medium" style={{ ...thSticky0, width: 150 }}>Продукт</th>
               )}
               {showManufacturer && (
-                <th className="px-4 font-medium" style={thSticky0}>Производитель</th>
+                <th className="px-4 font-medium" style={{ ...thSticky0, width: 150 }}>Производитель</th>
               )}
               {showPlanStart && (
-                <th className="px-4 font-medium" style={thSticky0}>Дата начала (план)</th>
+                <th className="px-4 font-medium" style={{ ...thSticky0, width: 140 }}>Дата начала (план)</th>
               )}
               {showPlanEnd && (
-                <th className="px-4 font-medium" style={thSticky0}>Дата конца (план)</th>
+                <th className="px-4 font-medium" style={{ ...thSticky0, width: 140 }}>Дата конца (план)</th>
               )}
-              <th className="px-4 font-medium w-full" style={thSticky0}>Гант</th>
+              <th className="px-4 font-medium" style={{ ...thSticky0, minWidth: 400 }}>Гант</th>
             </tr>
             {/* Строка 2: шкала дат */}
             <tr style={{ borderBottom: "1px solid #e5e7eb" }}>
-              <th colSpan={2 + (showPlanStart ? 1 : 0) + (showPlanEnd ? 1 : 0)} style={{ background: "white" }} />
+              <th colSpan={totalCols - 1} style={thSticky48} />
               <th className="px-4 py-1 w-full font-normal" style={thSticky48}>
                 <div className="relative w-full" style={{ height: 24 }}>
                   {mondays.map((iso) => (

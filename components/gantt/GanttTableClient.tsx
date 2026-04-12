@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import GanttBar from "./GanttBar";
+import Tooltip from "@/components/ui/Tooltip";
 import { supabase } from "@/lib/supabase";
 import FilterDropdown from "@/components/filters/FilterDropdown";
 
@@ -144,6 +145,42 @@ function groupTasks(tasks: Task[]): Map<string, Map<string, Task[]>> {
   return result;
 }
 
+function TaskNameCell({
+  task,
+  indent,
+}: {
+  task: Task;
+  indent: number;
+}) {
+  const [tip, setTip] = useState<{ x: number; y: number } | null>(null);
+  const name = task.template_tasks?.name ?? "—";
+  return (
+    <td
+      className="py-3 font-medium text-zinc-900 dark:text-zinc-100"
+      style={{ paddingLeft: indent, paddingRight: 16, width: 180, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+      onMouseEnter={(e) => setTip({ x: e.clientX, y: e.clientY })}
+      onMouseMove={(e) => setTip({ x: e.clientX, y: e.clientY })}
+      onMouseLeave={() => setTip(null)}
+    >
+      {name}
+      {tip && task.plan_start && task.plan_end && (
+        <Tooltip
+          taskName={name}
+          status={task.status ?? "Не начата"}
+          planStart={task.plan_start}
+          planEnd={task.plan_end}
+          factStart={task.fact_start}
+          factEnd={task.fact_end}
+          productName={task.products?.name ?? ""}
+          manufacturerName={task.manufacturers?.name ?? ""}
+          x={tip.x}
+          y={tip.y}
+        />
+      )}
+    </td>
+  );
+}
+
 export default function GanttTableClient({
   tasks: initialTasks,
   initialProductFilter,
@@ -160,8 +197,6 @@ export default function GanttTableClient({
   const [showManufacturer, setShowManufacturer] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string[]>([]);
   const [productFilter, setProductFilter] = useState<string[]>(() => {
-    console.log('initialProductFilter:', initialProductFilter, typeof initialProductFilter);
-    console.log('first task product_id:', initialTasks[0]?.product_id, typeof initialTasks[0]?.product_id);
     if (!initialProductFilter) return [];
     const match = initialTasks.find((t) => t.product_id === initialProductFilter);
     return match?.products?.name ? [match.products.name] : [];
@@ -321,15 +356,13 @@ export default function GanttTableClient({
   function renderTaskCells(task: Task, nameIndent: number) {
     return (
       <>
-        <td className="py-3 font-medium text-zinc-900 dark:text-zinc-100" style={{ paddingLeft: nameIndent, paddingRight: 16, width: 180, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-          {task.template_tasks?.name ?? "—"}
-        </td>
+        <TaskNameCell task={task} indent={nameIndent} />
         <td className="px-2 py-2" style={{ width: 120 }}>
           <select
             value={task.status ?? "Не начата"}
             onChange={(e) => updateStatus(task.id, e.target.value)}
             style={{ color: STATUS_COLORS[task.status ?? "Не начата"] ?? "#B4B2A9" }}
-            className="w-full text-sm font-medium bg-transparent border border-transparent rounded px-2 py-1 hover:border-zinc-300 focus:border-zinc-400 focus:outline-none cursor-pointer transition-colors"
+            className="w-full text-xs font-medium bg-transparent border border-transparent rounded px-2 py-1 hover:border-zinc-300 focus:border-zinc-400 focus:outline-none cursor-pointer transition-colors"
           >
             {STATUS_OPTIONS.map((s) => (
               <option key={s} value={s} style={{ color: STATUS_COLORS[s] }}>
@@ -354,7 +387,7 @@ export default function GanttTableClient({
               type="date"
               value={task.plan_start ?? ""}
               onChange={(e) => updateDate(task.id, "plan_start", e.target.value)}
-              className="text-sm text-zinc-700 dark:text-zinc-300 bg-transparent border border-zinc-200 dark:border-zinc-700 rounded px-2 py-1 focus:outline-none focus:border-zinc-400"
+              className="text-xs text-zinc-700 dark:text-zinc-300 bg-transparent border border-zinc-200 dark:border-zinc-700 rounded px-2 py-1 focus:outline-none focus:border-zinc-400"
             />
           </td>
         )}
@@ -364,7 +397,7 @@ export default function GanttTableClient({
               type="date"
               value={task.plan_end ?? ""}
               onChange={(e) => updateDate(task.id, "plan_end", e.target.value)}
-              className="text-sm text-zinc-700 dark:text-zinc-300 bg-transparent border border-zinc-200 dark:border-zinc-700 rounded px-2 py-1 focus:outline-none focus:border-zinc-400"
+              className="text-xs text-zinc-700 dark:text-zinc-300 bg-transparent border border-zinc-200 dark:border-zinc-700 rounded px-2 py-1 focus:outline-none focus:border-zinc-400"
             />
           </td>
         )}
@@ -374,7 +407,7 @@ export default function GanttTableClient({
               type="date"
               value={task.fact_start ?? ""}
               onChange={(e) => updateDate(task.id, "fact_start", e.target.value)}
-              className="text-sm text-zinc-700 dark:text-zinc-300 bg-transparent border border-zinc-200 dark:border-zinc-700 rounded px-2 py-1 focus:outline-none focus:border-zinc-400"
+              className="text-xs text-zinc-700 dark:text-zinc-300 bg-transparent border border-zinc-200 dark:border-zinc-700 rounded px-2 py-1 focus:outline-none focus:border-zinc-400"
             />
           </td>
         )}
@@ -384,7 +417,7 @@ export default function GanttTableClient({
               type="date"
               value={task.fact_end ?? ""}
               onChange={(e) => updateDate(task.id, "fact_end", e.target.value)}
-              className="text-sm text-zinc-700 dark:text-zinc-300 bg-transparent border border-zinc-200 dark:border-zinc-700 rounded px-2 py-1 focus:outline-none focus:border-zinc-400"
+              className="text-xs text-zinc-700 dark:text-zinc-300 bg-transparent border border-zinc-200 dark:border-zinc-700 rounded px-2 py-1 focus:outline-none focus:border-zinc-400"
             />
           </td>
         )}
@@ -540,7 +573,7 @@ export default function GanttTableClient({
       <div
         className="w-full rounded-lg border border-zinc-200 dark:border-zinc-700"
       >
-        <table className="w-full text-sm text-left" style={{ tableLayout: "fixed", width: "100%" }}>
+        <table className="w-full text-xs text-left" style={{ tableLayout: "fixed", width: "100%" }}>
           <thead className="text-zinc-600 dark:text-zinc-400 uppercase text-xs tracking-wide">
             {/* Строка 1: заголовки колонок */}
             <tr>

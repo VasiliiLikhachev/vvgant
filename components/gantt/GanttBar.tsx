@@ -72,7 +72,7 @@ export default function GanttBar({
       onMouseMove={(e) => setTooltip({ x: e.clientX, y: e.clientY })}
       onMouseLeave={() => setTooltip(null)}
     >
-      {/* Плановая полоска */}
+      {/* Плановая полоска — диагональная штриховка */}
       <div
         className="absolute rounded-sm"
         style={{
@@ -80,7 +80,7 @@ export default function GanttBar({
           width: `${planWidth}%`,
           top: planTop,
           height: PLAN_HEIGHT,
-          backgroundColor: color,
+          backgroundImage: `repeating-linear-gradient(-45deg, ${color} 0px, ${color} 2px, transparent 2px, transparent 7px)`,
           zIndex: 1,
         }}
       />

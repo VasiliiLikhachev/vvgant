@@ -16,7 +16,7 @@ export default async function GanttTable({
     console.error("GanttTable fetch error:", error.message);
   }
 
-  const rows = ((tasks ?? []) as Parameters<typeof GanttTableClient>[0]["tasks"]).sort(
+  const rows = ((tasks ?? []) as unknown as Parameters<typeof GanttTableClient>[0]["tasks"]).sort(
     (a, b) => (a.template_tasks?.order ?? 0) - (b.template_tasks?.order ?? 0)
   );
 

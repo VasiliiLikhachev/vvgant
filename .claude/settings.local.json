@@ -6,7 +6,8 @@
       "Bash(mv /tmp/CLAUDE.md.bak CLAUDE.md)",
       "Bash(npm install:*)",
       "Bash(cmd:*)",
-      "Bash(npm run:*)"
+      "Bash(npm run:*)",
+      "Bash(npx tsc:*)"
     ]
   }
 }

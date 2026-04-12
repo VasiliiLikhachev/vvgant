@@ -7,6 +7,7 @@ import FilterDropdown from "@/components/filters/FilterDropdown";
 
 type Task = {
   id: string;
+  product_id: number | null;
   status: string | null;
   plan_start: string | null;
   plan_end: string | null;
@@ -85,7 +86,13 @@ function groupTasks(tasks: Task[]): Map<string, Map<string, Task[]>> {
   return result;
 }
 
-export default function GanttTableClient({ tasks: initialTasks }: { tasks: Task[] }) {
+export default function GanttTableClient({
+  tasks: initialTasks,
+  initialProductFilter,
+}: {
+  tasks: Task[];
+  initialProductFilter?: number | null;
+}) {
   const [tasks, setTasks] = useState<Task[]>(initialTasks);
   const [showPlanStart, setShowPlanStart] = useState(true);
   const [showPlanEnd, setShowPlanEnd] = useState(true);
@@ -94,6 +101,13 @@ export default function GanttTableClient({ tasks: initialTasks }: { tasks: Task[
   const [showProduct, setShowProduct] = useState(false);
   const [showManufacturer, setShowManufacturer] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string[]>([]);
+  const [productFilter, setProductFilter] = useState<string[]>(() => {
+    console.log('initialProductFilter:', initialProductFilter, typeof initialProductFilter);
+    console.log('first task product_id:', initialTasks[0]?.product_id, typeof initialTasks[0]?.product_id);
+    if (!initialProductFilter) return [];
+    const match = initialTasks.find((t) => t.product_id === initialProductFilter);
+    return match?.products?.name ? [match.products.name] : [];
+  });
   const [groupMode, setGroupMode] = useState<"product" | "manufacturer">("product");
   const [imgTooltip, setImgTooltip] = useState<{ url: string; x: number; y: number } | null>(null);
 
@@ -111,10 +125,15 @@ export default function GanttTableClient({ tasks: initialTasks }: { tasks: Task[
     );
   }
 
-  const filteredTasks =
-    statusFilter.length === 0
-      ? tasks
-      : tasks.filter((t) => t.status !== null && statusFilter.includes(t.status));
+  const productNames = Array.from(
+    new Set(tasks.map((t) => t.products?.name).filter(Boolean) as string[])
+  ).sort();
+
+  const filteredTasks = tasks.filter((t) => {
+    if (statusFilter.length > 0 && (t.status === null || !statusFilter.includes(t.status))) return false;
+    if (productFilter.length > 0 && (t.products?.name == null || !productFilter.includes(t.products.name))) return false;
+    return true;
+  });
 
   // rangeStart/rangeEnd — по всем задачам, не по отфильтрованным
   const rangeStart =
@@ -312,7 +331,14 @@ export default function GanttTableClient({ tasks: initialTasks }: { tasks: Task[
           <thead className="text-zinc-600 dark:text-zinc-400 uppercase text-xs tracking-wide">
             {/* Строка 1: заголовки колонок */}
             <tr>
-              <th className="px-4 font-medium" style={{ ...thSticky0, width: 180 }}>Название задачи</th>
+              <th className="px-4 font-medium" style={{ ...thSticky0, width: 180 }}>
+                <FilterDropdown
+                  label="Задача"
+                  options={productNames}
+                  selected={productFilter}
+                  onApply={setProductFilter}
+                />
+              </th>
               <th className="px-4 font-medium" style={{ ...thSticky0, width: 120 }}>
                 <FilterDropdown
                   label="Статус"

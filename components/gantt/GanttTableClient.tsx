@@ -225,11 +225,11 @@ export default function GanttTableClient({ tasks: initialTasks }: { tasks: Task[
   }
 
   const thSticky0: React.CSSProperties = {
-    position: "sticky", top: 0, background: "white",
+    position: "sticky", top: 0, zIndex: 4, background: "white",
     height: 48, boxShadow: "0 1px 0 #e5e7eb",
   };
   const thSticky48: React.CSSProperties = {
-    position: "sticky", top: 48, background: "white",
+    position: "sticky", top: 48, zIndex: 4, background: "white",
   };
 
   return (

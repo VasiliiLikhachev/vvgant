@@ -225,11 +225,11 @@ export default function GanttTableClient({ tasks: initialTasks }: { tasks: Task[
   }
 
   const thSticky0: React.CSSProperties = {
-    position: "sticky", top: 0, zIndex: 1, background: "white",
+    position: "sticky", top: 0, background: "white",
     height: 48, boxShadow: "0 1px 0 #e5e7eb",
   };
   const thSticky48: React.CSSProperties = {
-    position: "sticky", top: 48, zIndex: 1, background: "white",
+    position: "sticky", top: 48, background: "white",
   };
 
   return (
@@ -277,7 +277,6 @@ export default function GanttTableClient({ tasks: initialTasks }: { tasks: Task[
 
       <div
         className="w-full overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-700"
-        style={{ maxHeight: "calc(100vh - 160px)", overflowY: "auto" }}
       >
         <table className="w-full text-sm text-left">
           <thead className="text-zinc-600 dark:text-zinc-400 uppercase text-xs tracking-wide">

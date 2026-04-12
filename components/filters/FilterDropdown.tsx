@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 type Props = {
   label: string;
@@ -100,10 +101,10 @@ export default function FilterDropdown({ label, options, selected, onApply }: Pr
         <FunnelIcon active={isActive} />
       </button>
 
-      {open && (
+      {open && createPortal(
         <div
           ref={dropdownRef}
-          style={{ position: "fixed", top: pos.top, left: pos.left, zIndex: 100, maxHeight: "300px", overflowY: "auto" }}
+          style={{ position: "fixed", top: pos.top, left: pos.left, zIndex: 9999, maxHeight: "300px", overflowY: "auto" }}
           className="min-w-[180px] rounded-lg border border-zinc-200 bg-white shadow-lg dark:border-zinc-700 dark:bg-zinc-900"
         >
           <ul className="max-h-52 overflow-y-auto py-1">
@@ -136,7 +137,8 @@ export default function FilterDropdown({ label, options, selected, onApply }: Pr
               Сбросить
             </button>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

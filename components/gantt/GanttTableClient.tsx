@@ -157,7 +157,7 @@ export default function GanttTableClient({ tasks: initialTasks }: { tasks: Task[
   function renderTaskCells(task: Task, nameIndent: number) {
     return (
       <>
-        <td className="py-3 font-medium text-zinc-900 dark:text-zinc-100 overflow-hidden text-ellipsis" style={{ paddingLeft: nameIndent, paddingRight: 16, minWidth: 200 }}>
+        <td className="py-3 font-medium text-zinc-900 dark:text-zinc-100" style={{ paddingLeft: nameIndent, paddingRight: 16, width: 180, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
           {task.template_tasks?.name ?? "—"}
         </td>
         <td className="px-4 py-3 text-zinc-600 dark:text-zinc-400" style={{ width: 120 }}>
@@ -282,7 +282,7 @@ export default function GanttTableClient({ tasks: initialTasks }: { tasks: Task[
           <thead className="text-zinc-600 dark:text-zinc-400 uppercase text-xs tracking-wide">
             {/* Строка 1: заголовки колонок */}
             <tr>
-              <th className="px-4 font-medium" style={{ ...thSticky0, minWidth: 200 }}>Название задачи</th>
+              <th className="px-4 font-medium" style={{ ...thSticky0, width: 180 }}>Название задачи</th>
               <th className="px-4 font-medium" style={{ ...thSticky0, width: 120 }}>
                 <FilterDropdown
                   label="Статус"

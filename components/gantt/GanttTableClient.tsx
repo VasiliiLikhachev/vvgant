@@ -89,16 +89,18 @@ export default function GanttTableClient({ tasks: initialTasks }: { tasks: Task[
   const [tasks, setTasks] = useState<Task[]>(initialTasks);
   const [showPlanStart, setShowPlanStart] = useState(true);
   const [showPlanEnd, setShowPlanEnd] = useState(true);
+  const [showFactStart, setShowFactStart] = useState(true);
+  const [showFactEnd, setShowFactEnd] = useState(true);
   const [showProduct, setShowProduct] = useState(false);
   const [showManufacturer, setShowManufacturer] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string[]>([]);
   const [groupMode, setGroupMode] = useState<"product" | "manufacturer">("product");
   const [imgTooltip, setImgTooltip] = useState<{ url: string; x: number; y: number } | null>(null);
 
-  async function updateDate(id: string, field: "plan_start" | "plan_end", value: string) {
+  async function updateDate(id: string, field: "plan_start" | "plan_end" | "fact_start" | "fact_end", value: string) {
     const { error } = await supabase
       .from("tasks")
-      .update({ [field]: value })
+      .update({ [field]: value || null })
       .eq("id", id);
     if (error) {
       console.error("Ошибка обновления даты:", error.message);
@@ -151,6 +153,8 @@ export default function GanttTableClient({ tasks: initialTasks }: { tasks: Task[
   const totalCols = 3
     + (showPlanStart ? 1 : 0)
     + (showPlanEnd ? 1 : 0)
+    + (showFactStart ? 1 : 0)
+    + (showFactEnd ? 1 : 0)
     + (showProduct ? 1 : 0)
     + (showManufacturer ? 1 : 0);
 
@@ -189,6 +193,26 @@ export default function GanttTableClient({ tasks: initialTasks }: { tasks: Task[
               type="date"
               value={task.plan_end ?? ""}
               onChange={(e) => updateDate(task.id, "plan_end", e.target.value)}
+              className="text-sm text-zinc-700 dark:text-zinc-300 bg-transparent border border-zinc-200 dark:border-zinc-700 rounded px-2 py-1 focus:outline-none focus:border-zinc-400"
+            />
+          </td>
+        )}
+        {showFactStart && (
+          <td className="px-4 py-2" style={{ width: 140 }}>
+            <input
+              type="date"
+              value={task.fact_start ?? ""}
+              onChange={(e) => updateDate(task.id, "fact_start", e.target.value)}
+              className="text-sm text-zinc-700 dark:text-zinc-300 bg-transparent border border-zinc-200 dark:border-zinc-700 rounded px-2 py-1 focus:outline-none focus:border-zinc-400"
+            />
+          </td>
+        )}
+        {showFactEnd && (
+          <td className="px-4 py-2" style={{ width: 140 }}>
+            <input
+              type="date"
+              value={task.fact_end ?? ""}
+              onChange={(e) => updateDate(task.id, "fact_end", e.target.value)}
               className="text-sm text-zinc-700 dark:text-zinc-300 bg-transparent border border-zinc-200 dark:border-zinc-700 rounded px-2 py-1 focus:outline-none focus:border-zinc-400"
             />
           </td>
@@ -272,6 +296,12 @@ export default function GanttTableClient({ tasks: initialTasks }: { tasks: Task[
           <ToggleButton active={showPlanEnd} onClick={() => setShowPlanEnd((v) => !v)}>
             Дата конца (план)
           </ToggleButton>
+          <ToggleButton active={showFactStart} onClick={() => setShowFactStart((v) => !v)}>
+            Факт начало
+          </ToggleButton>
+          <ToggleButton active={showFactEnd} onClick={() => setShowFactEnd((v) => !v)}>
+            Факт конец
+          </ToggleButton>
         </div>
       </div>
 
@@ -302,6 +332,12 @@ export default function GanttTableClient({ tasks: initialTasks }: { tasks: Task[
               )}
               {showPlanEnd && (
                 <th className="px-4 font-medium" style={{ ...thSticky0, width: 140 }}>Дата конца (план)</th>
+              )}
+              {showFactStart && (
+                <th className="px-4 font-medium" style={{ ...thSticky0, width: 140 }}>Факт начало</th>
+              )}
+              {showFactEnd && (
+                <th className="px-4 font-medium" style={{ ...thSticky0, width: 140 }}>Факт конец</th>
               )}
               <th className="px-4 font-medium" style={{ ...thSticky0, minWidth: 400 }}>Гант</th>
             </tr>

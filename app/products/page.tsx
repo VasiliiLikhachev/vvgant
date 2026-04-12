@@ -110,10 +110,10 @@ export default function ProductsPage() {
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-xl font-bold text-zinc-900">Продукты</h1>
         <Link
-          href="/"
-          className="text-sm text-zinc-500 hover:text-zinc-800 transition-colors"
+          href="/template"
+          className="px-4 py-2 text-sm font-medium bg-green-600 text-white rounded-lg hover:bg-green-500 transition-colors"
         >
-          ← Гант
+          + Создать продукт
         </Link>
       </div>
 

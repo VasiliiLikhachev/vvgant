@@ -75,6 +75,62 @@ function formatDateShort(iso: string): string {
   return new Date(iso).toLocaleDateString("ru-RU", { day: "2-digit", month: "2-digit" });
 }
 
+function formatMonthYear(iso: string): string {
+  return new Date(iso).toLocaleDateString("ru-RU", { month: "short", year: "numeric" });
+}
+
+type Scale = "days" | "weeks" | "months";
+
+const SCALE_WINDOW: Record<Scale, number> = { days: 30, weeks: 84, months: 180 };
+const SCALE_STEP: Record<Scale, number> = { days: 7, weeks: 28, months: 30 };
+
+function isoAddDays(iso: string, days: number): string {
+  const d = new Date(iso);
+  d.setDate(d.getDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+function initRange(scale: Scale, anchor?: string): { start: string; end: string } {
+  const half = Math.floor(SCALE_WINDOW[scale] / 2);
+  const base = anchor ?? new Date().toISOString().slice(0, 10);
+  const start = isoAddDays(base, -half);
+  const end = isoAddDays(start, SCALE_WINDOW[scale]);
+  return { start, end };
+}
+
+function getScaleLabels(rangeStart: string, rangeEnd: string, scale: Scale): string[] {
+  if (scale === "weeks") return getMondays(rangeStart, rangeEnd);
+  const labels: string[] = [];
+  const cursor = new Date(rangeStart);
+  if (scale === "days") {
+    while (cursor.toISOString().slice(0, 10) <= rangeEnd) {
+      labels.push(cursor.toISOString().slice(0, 10));
+      cursor.setUTCDate(cursor.getUTCDate() + 1);
+    }
+  } else {
+    // months: 1-е числа каждого месяца
+    // Если rangeStart не 1-е — стартуем с 1-го числа следующего месяца
+    if (cursor.getUTCDate() !== 1) {
+      cursor.setUTCMonth(cursor.getUTCMonth() + 1);
+    }
+    cursor.setUTCDate(1);
+    while (cursor.toISOString().slice(0, 10) <= rangeEnd) {
+      labels.push(cursor.toISOString().slice(0, 10));
+      cursor.setUTCMonth(cursor.getUTCMonth() + 1);
+    }
+  }
+  return labels;
+}
+
+function getGridLines(rangeStart: string, rangeEnd: string, scale: Scale): string[] {
+  return getScaleLabels(rangeStart, rangeEnd, scale);
+}
+
+function formatLabel(iso: string, scale: Scale): string {
+  if (scale === "months") return formatMonthYear(iso);
+  return formatDateShort(iso);
+}
+
 function groupTasks(tasks: Task[]): Map<string, Map<string, Task[]>> {
   const result = new Map<string, Map<string, Task[]>>();
   for (const task of tasks) {
@@ -112,6 +168,11 @@ export default function GanttTableClient({
   });
   const [taskNameFilter, setTaskNameFilter] = useState<string[]>([]);
   const [manufacturerFilter, setManufacturerFilter] = useState<string[]>([]);
+  const [showGrid, setShowGrid] = useState(false);
+  const [showWeekends, setShowWeekends] = useState(false);
+  const [scale, setScale] = useState<Scale>("weeks");
+  const [rangeStart, setRangeStart] = useState(() => initRange("weeks").start);
+  const [rangeEnd, setRangeEnd] = useState(() => initRange("weeks").end);
   const [groupMode, setGroupMode] = useState<"product" | "manufacturer">("product");
   const [imgTooltip, setImgTooltip] = useState<{ url: string; x: number; y: number } | null>(null);
 
@@ -141,6 +202,25 @@ export default function GanttTableClient({
     setTasks((prev) =>
       prev.map((t) => (t.id === id ? { ...t, [field]: value } : t))
     );
+  }
+
+  function applyScale(newScale: Scale) {
+    const { start, end } = initRange(newScale, rangeStart);
+    setScale(newScale);
+    setRangeStart(start);
+    setRangeEnd(end);
+  }
+
+  function shiftRange(dir: 1 | -1) {
+    const step = SCALE_STEP[scale] * dir;
+    setRangeStart(isoAddDays(rangeStart, step));
+    setRangeEnd(isoAddDays(rangeEnd, step));
+  }
+
+  function goToToday() {
+    const { start, end } = initRange(scale);
+    setRangeStart(start);
+    setRangeEnd(end);
   }
 
   const taskNames = Array.from(
@@ -181,18 +261,33 @@ export default function GanttTableClient({
     return true;
   });
 
-  // rangeStart/rangeEnd — по всем задачам, не по отфильтрованным
-  const rangeStart =
-    tasks.map((t) => t.plan_start).filter(Boolean).sort()[0] ??
-    new Date().toISOString().slice(0, 10);
-  const rangeEnd =
-    tasks.map((t) => t.plan_end).filter(Boolean).sort().at(-1) ??
-    new Date().toISOString().slice(0, 10);
-
-  const mondays = getMondays(rangeStart, rangeEnd);
+  const scaleLabels = getScaleLabels(rangeStart, rangeEnd, scale);
+  const gridLines = showGrid ? getGridLines(rangeStart, rangeEnd, scale) : [];
   const todayIso = new Date().toISOString().slice(0, 10);
   const todayInRange = todayIso >= rangeStart && todayIso <= rangeEnd;
   const todayLeft = todayInRange ? toPercent(todayIso, rangeStart, rangeEnd) : null;
+
+  // Пары [leftPercent, widthPercent] для каждых выходных (сб+вс) в диапазоне
+  const weekendBands = (() => {
+    if (!showWeekends) return [];
+    const bands: { left: number; width: number }[] = [];
+    const cursor = new Date(rangeStart);
+    const end = new Date(rangeEnd);
+    while (cursor <= end) {
+      const day = cursor.getDay();
+      if (day === 6) { // суббота — начало полосы (сб+вс = 2 дня)
+        const satIso = cursor.toISOString().slice(0, 10);
+        const sunDate = new Date(cursor);
+        sunDate.setDate(sunDate.getDate() + 1);
+        const sunIso = sunDate.toISOString().slice(0, 10);
+        const left = toPercent(satIso, rangeStart, rangeEnd);
+        const right = toPercent(sunIso, rangeStart, rangeEnd) + (100 / ((new Date(rangeEnd).getTime() - new Date(rangeStart).getTime()) / 86400000 || 1));
+        bands.push({ left, width: Math.min(right, 100) - left });
+      }
+      cursor.setDate(cursor.getDate() + 1);
+    }
+    return bands;
+  })();
 
   const grouped = groupTasks(filteredTasks);
 
@@ -294,7 +389,7 @@ export default function GanttTableClient({
           </td>
         )}
         <td className="px-4 py-3" style={{ minWidth: 400 }}>
-          <div className="relative">
+          <div className="relative" style={{ overflow: "hidden" }}>
             {task.plan_start && task.plan_end ? (
               <GanttBar
                 planStart={task.plan_start}
@@ -312,6 +407,22 @@ export default function GanttTableClient({
             ) : (
               <div style={{ height: 32, background: "#f5f5f5" }} />
             )}
+            {/* Выходные */}
+            {weekendBands.map((band, i) => (
+              <div
+                key={i}
+                className="absolute inset-y-0 pointer-events-none"
+                style={{ left: `${band.left}%`, width: `${band.width}%`, background: "#FFF9C4", zIndex: 0 }}
+              />
+            ))}
+            {/* Сетка */}
+            {gridLines.map((iso) => (
+              <div
+                key={iso}
+                className="absolute inset-y-0 w-px pointer-events-none"
+                style={{ left: `${toPercent(iso, rangeStart, rangeEnd)}%`, background: "rgba(0,0,0,0.1)", zIndex: 0 }}
+              />
+            ))}
             {todayLeft !== null && (
               <div
                 className="absolute inset-y-0 w-px bg-red-500 pointer-events-none"
@@ -358,6 +469,44 @@ export default function GanttTableClient({
             По производителю
           </button>
         </div>
+        {/* Навигация по таймлайну */}
+        <div className="flex items-center gap-2">
+          {/* Масштаб */}
+          <div className="flex items-center gap-0.5 rounded-lg border border-zinc-200 dark:border-zinc-700 p-0.5">
+            {(["days", "weeks", "months"] as Scale[]).map((s) => (
+              <button
+                key={s}
+                onClick={() => applyScale(s)}
+                className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${
+                  scale === s
+                    ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900"
+                    : "text-zinc-500 hover:text-zinc-700 dark:text-zinc-400"
+                }`}
+              >
+                {s === "days" ? "Дни" : s === "weeks" ? "Недели" : "Месяцы"}
+              </button>
+            ))}
+          </div>
+          {/* Пагинация */}
+          <button
+            onClick={() => shiftRange(-1)}
+            className="px-2 py-1 rounded border border-zinc-200 text-zinc-500 hover:border-zinc-400 hover:text-zinc-800 text-sm transition-colors"
+          >
+            ←
+          </button>
+          <button
+            onClick={goToToday}
+            className="px-2.5 py-1 rounded border border-zinc-200 text-xs text-zinc-500 hover:border-zinc-400 hover:text-zinc-800 transition-colors"
+          >
+            Сегодня
+          </button>
+          <button
+            onClick={() => shiftRange(1)}
+            className="px-2 py-1 rounded border border-zinc-200 text-zinc-500 hover:border-zinc-400 hover:text-zinc-800 text-sm transition-colors"
+          >
+            →
+          </button>
+        </div>
         <div className="flex items-center gap-2">
           <span className="text-xs text-zinc-500 dark:text-zinc-400 mr-1">Колонки:</span>
           <ToggleButton active={showProduct} onClick={() => setShowProduct((v) => !v)}>
@@ -377,6 +526,13 @@ export default function GanttTableClient({
           </ToggleButton>
           <ToggleButton active={showFactEnd} onClick={() => setShowFactEnd((v) => !v)}>
             Факт конец
+          </ToggleButton>
+          <span className="text-xs text-zinc-300 dark:text-zinc-600 mx-1">|</span>
+          <ToggleButton active={showGrid} onClick={() => setShowGrid((v) => !v)}>
+            Сетка
+          </ToggleButton>
+          <ToggleButton active={showWeekends} onClick={() => setShowWeekends((v) => !v)}>
+            Выходные
           </ToggleButton>
         </div>
       </div>
@@ -443,13 +599,13 @@ export default function GanttTableClient({
               <th colSpan={totalCols - 1} style={thSticky48} />
               <th className="px-4 py-1 w-full font-normal" style={thSticky48}>
                 <div className="relative w-full" style={{ height: 24 }}>
-                  {mondays.map((iso) => (
+                  {scaleLabels.map((iso) => (
                     <span
                       key={iso}
                       className="absolute text-[10px] text-zinc-400 dark:text-zinc-500 -translate-x-1/2"
                       style={{ left: `${toPercent(iso, rangeStart, rangeEnd)}%`, top: 4 }}
                     >
-                      {formatDateShort(iso)}
+                      {formatLabel(iso, scale)}
                     </span>
                   ))}
                   {todayLeft !== null && (

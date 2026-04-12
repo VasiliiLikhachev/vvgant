@@ -18,12 +18,14 @@ type Task = {
   manufacturers: { name: string } | null;
 };
 
-const STATUS_LABELS: Record<string, string> = {
-  "Не начата": "Не начата",
-  "В процессе": "В процессе",
-  "Готово": "Готово",
-  "Задержка": "Задержка",
+const STATUS_COLORS: Record<string, string> = {
+  "Не начата": "#B4B2A9",
+  "В процессе": "#378ADD",
+  "Готово": "#1D9E75",
+  "Задержка": "#E24B4A",
 };
+
+const STATUS_OPTIONS = ["Не начата", "В процессе", "Готово", "Задержка"];
 
 function ToggleButton({
   active,
@@ -111,6 +113,20 @@ export default function GanttTableClient({
   const [groupMode, setGroupMode] = useState<"product" | "manufacturer">("product");
   const [imgTooltip, setImgTooltip] = useState<{ url: string; x: number; y: number } | null>(null);
 
+  async function updateStatus(id: string, value: string) {
+    const { error } = await supabase
+      .from("tasks")
+      .update({ status: value })
+      .eq("id", id);
+    if (error) {
+      console.error("Ошибка обновления статуса:", error.message);
+      return;
+    }
+    setTasks((prev) =>
+      prev.map((t) => (t.id === id ? { ...t, status: value } : t))
+    );
+  }
+
   async function updateDate(id: string, field: "plan_start" | "plan_end" | "fact_start" | "fact_end", value: string) {
     const { error } = await supabase
       .from("tasks")
@@ -183,8 +199,19 @@ export default function GanttTableClient({
         <td className="py-3 font-medium text-zinc-900 dark:text-zinc-100" style={{ paddingLeft: nameIndent, paddingRight: 16, width: 180, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
           {task.template_tasks?.name ?? "—"}
         </td>
-        <td className="px-4 py-3 text-zinc-600 dark:text-zinc-400" style={{ width: 120 }}>
-          {task.status ? (STATUS_LABELS[task.status] ?? task.status) : "—"}
+        <td className="px-2 py-2" style={{ width: 120 }}>
+          <select
+            value={task.status ?? "Не начата"}
+            onChange={(e) => updateStatus(task.id, e.target.value)}
+            style={{ color: STATUS_COLORS[task.status ?? "Не начата"] ?? "#B4B2A9" }}
+            className="w-full text-sm font-medium bg-transparent border border-transparent rounded px-2 py-1 hover:border-zinc-300 focus:border-zinc-400 focus:outline-none cursor-pointer transition-colors"
+          >
+            {STATUS_OPTIONS.map((s) => (
+              <option key={s} value={s} style={{ color: STATUS_COLORS[s] }}>
+                {s}
+              </option>
+            ))}
+          </select>
         </td>
         {showProduct && (
           <td className="px-4 py-3 text-zinc-600 dark:text-zinc-400 overflow-hidden text-ellipsis" style={{ width: 150 }}>

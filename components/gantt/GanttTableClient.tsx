@@ -111,6 +111,7 @@ export default function GanttTableClient({
     return match?.products?.name ? [match.products.name] : [];
   });
   const [taskNameFilter, setTaskNameFilter] = useState<string[]>([]);
+  const [manufacturerFilter, setManufacturerFilter] = useState<string[]>([]);
   const [groupMode, setGroupMode] = useState<"product" | "manufacturer">("product");
   const [imgTooltip, setImgTooltip] = useState<{ url: string; x: number; y: number } | null>(null);
 
@@ -146,10 +147,37 @@ export default function GanttTableClient({
     new Set(tasks.map((t) => t.template_tasks?.name).filter(Boolean) as string[])
   ).sort();
 
-  const filteredTasks = tasks.filter((t) => {
+  // Базовый фильтр по статусу и задаче (без продукта и производителя)
+  function matchesBaseFilters(t: Task) {
     if (statusFilter.length > 0 && (t.status === null || !statusFilter.includes(t.status))) return false;
-    if (productFilter.length > 0 && (t.products?.name == null || !productFilter.includes(t.products.name))) return false;
     if (taskNameFilter.length > 0 && (t.template_tasks?.name == null || !taskNameFilter.includes(t.template_tasks.name))) return false;
+    return true;
+  }
+
+  const tasksFilteredWithoutProduct = tasks.filter((t) => {
+    if (!matchesBaseFilters(t)) return false;
+    if (manufacturerFilter.length > 0 && (t.manufacturers?.name == null || !manufacturerFilter.includes(t.manufacturers.name))) return false;
+    return true;
+  });
+
+  const tasksFilteredWithoutManufacturer = tasks.filter((t) => {
+    if (!matchesBaseFilters(t)) return false;
+    if (productFilter.length > 0 && (t.products?.name == null || !productFilter.includes(t.products.name))) return false;
+    return true;
+  });
+
+  const productNames = Array.from(
+    new Set(tasksFilteredWithoutProduct.map((t) => t.products?.name).filter(Boolean) as string[])
+  ).sort();
+
+  const manufacturerNames = Array.from(
+    new Set(tasksFilteredWithoutManufacturer.map((t) => t.manufacturers?.name).filter(Boolean) as string[])
+  ).sort();
+
+  const filteredTasks = tasks.filter((t) => {
+    if (!matchesBaseFilters(t)) return false;
+    if (productFilter.length > 0 && (t.products?.name == null || !productFilter.includes(t.products.name))) return false;
+    if (manufacturerFilter.length > 0 && (t.manufacturers?.name == null || !manufacturerFilter.includes(t.manufacturers.name))) return false;
     return true;
   });
 
@@ -377,10 +405,24 @@ export default function GanttTableClient({
                 />
               </th>
               {showProduct && (
-                <th className="px-4 font-medium" style={{ ...thSticky0, width: 150 }}>Продукт</th>
+                <th className="px-4 font-medium" style={{ ...thSticky0, width: 150 }}>
+                  <FilterDropdown
+                    label="Продукт"
+                    options={productNames}
+                    selected={productFilter}
+                    onApply={setProductFilter}
+                  />
+                </th>
               )}
               {showManufacturer && (
-                <th className="px-4 font-medium" style={{ ...thSticky0, width: 150 }}>Производитель</th>
+                <th className="px-4 font-medium" style={{ ...thSticky0, width: 150 }}>
+                  <FilterDropdown
+                    label="Производитель"
+                    options={manufacturerNames}
+                    selected={manufacturerFilter}
+                    onApply={setManufacturerFilter}
+                  />
+                </th>
               )}
               {showPlanStart && (
                 <th className="px-4 font-medium" style={{ ...thSticky0, width: 140 }}>Дата начала (план)</th>

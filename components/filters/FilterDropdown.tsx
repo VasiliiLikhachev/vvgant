@@ -39,6 +39,7 @@ export default function FilterDropdown({ label, options, selected, onApply }: Pr
   const [buffer, setBuffer] = useState<string[]>(selected);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const selectAllRef = useRef<HTMLInputElement>(null);
 
   function handleOpen() {
     if (triggerRef.current) {
@@ -54,6 +55,20 @@ export default function FilterDropdown({ label, options, selected, onApply }: Pr
       prev.includes(option) ? prev.filter((v) => v !== option) : [...prev, option]
     );
   }
+
+  function handleSelectAll() {
+    const allSelected = options.every((o) => buffer.includes(o));
+    setBuffer(allSelected ? [] : [...options]);
+  }
+
+  // Обновляем indeterminate на чекбоксе "Выбрать все"
+  useEffect(() => {
+    if (!selectAllRef.current) return;
+    const allSelected = options.length > 0 && options.every((o) => buffer.includes(o));
+    const noneSelected = buffer.length === 0 || !options.some((o) => buffer.includes(o));
+    selectAllRef.current.checked = allSelected;
+    selectAllRef.current.indeterminate = !allSelected && !noneSelected;
+  }, [buffer, options]);
 
   function handleApply() {
     onApply(buffer);
@@ -108,6 +123,17 @@ export default function FilterDropdown({ label, options, selected, onApply }: Pr
           className="min-w-[180px] rounded-lg border border-zinc-200 bg-white shadow-lg dark:border-zinc-700 dark:bg-zinc-900"
         >
           <ul className="max-h-52 overflow-y-auto py-1">
+            <li className="border-b border-zinc-100 dark:border-zinc-800">
+              <label className="flex cursor-pointer items-center gap-2 px-3 py-1.5 text-sm font-medium text-zinc-700 hover:bg-zinc-50 dark:text-zinc-300 dark:hover:bg-zinc-800">
+                <input
+                  ref={selectAllRef}
+                  type="checkbox"
+                  onChange={handleSelectAll}
+                  className="h-3.5 w-3.5 rounded border-zinc-300 accent-blue-500"
+                />
+                Выбрать все
+              </label>
+            </li>
             {options.map((option) => (
               <li key={option}>
                 <label className="flex cursor-pointer items-center gap-2 px-3 py-1.5 text-sm text-zinc-700 hover:bg-zinc-50 dark:text-zinc-300 dark:hover:bg-zinc-800">

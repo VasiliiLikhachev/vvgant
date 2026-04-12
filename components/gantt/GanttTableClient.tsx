@@ -110,6 +110,7 @@ export default function GanttTableClient({
     const match = initialTasks.find((t) => t.product_id === initialProductFilter);
     return match?.products?.name ? [match.products.name] : [];
   });
+  const [taskNameFilter, setTaskNameFilter] = useState<string[]>([]);
   const [groupMode, setGroupMode] = useState<"product" | "manufacturer">("product");
   const [imgTooltip, setImgTooltip] = useState<{ url: string; x: number; y: number } | null>(null);
 
@@ -141,13 +142,14 @@ export default function GanttTableClient({
     );
   }
 
-  const productNames = Array.from(
-    new Set(tasks.map((t) => t.products?.name).filter(Boolean) as string[])
+  const taskNames = Array.from(
+    new Set(tasks.map((t) => t.template_tasks?.name).filter(Boolean) as string[])
   ).sort();
 
   const filteredTasks = tasks.filter((t) => {
     if (statusFilter.length > 0 && (t.status === null || !statusFilter.includes(t.status))) return false;
     if (productFilter.length > 0 && (t.products?.name == null || !productFilter.includes(t.products.name))) return false;
+    if (taskNameFilter.length > 0 && (t.template_tasks?.name == null || !taskNameFilter.includes(t.template_tasks.name))) return false;
     return true;
   });
 
@@ -361,9 +363,9 @@ export default function GanttTableClient({
               <th className="px-4 font-medium" style={{ ...thSticky0, width: 180 }}>
                 <FilterDropdown
                   label="Задача"
-                  options={productNames}
-                  selected={productFilter}
-                  onApply={setProductFilter}
+                  options={taskNames}
+                  selected={taskNameFilter}
+                  onApply={setTaskNameFilter}
                 />
               </th>
               <th className="px-4 font-medium" style={{ ...thSticky0, width: 120 }}>

@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import Toast from "@/components/ui/Toast";
 
 const TEMPLATE_ID = 1;
 
@@ -73,9 +75,11 @@ const MODAL_INIT: ModalState = {
 };
 
 export default function TemplatePage() {
+  const router = useRouter();
   const [tasks, setTasks] = useState<TemplateTask[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [toast, setToast] = useState<{ message: string; productId: number } | null>(null);
   const [applying, setApplying] = useState(false);
   const [statusMsg, setStatusMsg] = useState<string | null>(null);
   const [modal, setModal] = useState<ModalState>(MODAL_INIT);
@@ -290,8 +294,7 @@ export default function TemplatePage() {
     }
 
     setModal(MODAL_INIT);
-    setStatusMsg("Продукт создан");
-    setTimeout(() => setStatusMsg(null), 3000);
+    setToast({ message: `Продукт «${productName.trim()}» создан`, productId: product.id });
   }
 
   async function addTask() {
@@ -525,6 +528,15 @@ export default function TemplatePage() {
             </div>
           </div>
         </>
+      )}
+
+      {toast && (
+        <Toast
+          message={toast.message}
+          actionLabel="Перейти к Ганту"
+          onAction={() => router.push(`/?product=${toast.productId}`)}
+          onClose={() => setToast(null)}
+        />
       )}
     </div>
   );

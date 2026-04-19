@@ -1,11 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import Toast from "@/components/ui/Toast";
-
-const TEMPLATE_ID = 1;
 
 type TemplateTask = {
   id: number;
@@ -75,7 +74,20 @@ const MODAL_INIT: ModalState = {
 };
 
 export default function TemplatePage() {
+  return (
+    <Suspense>
+      <TemplateContent />
+    </Suspense>
+  );
+}
+
+function TemplateContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const projectSlug = searchParams.get("project");
+
+  const [templateId, setTemplateId] = useState<number>(1);
+  const [projectId, setProjectId] = useState<number | null>(null);
   const [tasks, setTasks] = useState<TemplateTask[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -88,15 +100,40 @@ export default function TemplatePage() {
   const dirtyIds = useRef<Set<number>>(new Set());
 
   useEffect(() => {
-    load();
-  }, []);
+    async function init() {
+      let tmplId = 1;
+      let projId: number | null = null;
 
-  async function load() {
+      if (projectSlug) {
+        const { data: proj } = await supabase
+          .from("projects")
+          .select("id")
+          .eq("slug", projectSlug)
+          .single();
+        if (proj) {
+          projId = proj.id;
+          const { data: tmpl } = await supabase
+            .from("templates")
+            .select("id")
+            .eq("project_id", proj.id)
+            .single();
+          if (tmpl) tmplId = tmpl.id;
+        }
+      }
+
+      setTemplateId(tmplId);
+      setProjectId(projId);
+      await load(tmplId);
+    }
+    init();
+  }, [projectSlug]);
+
+  async function load(tmplId = templateId) {
     setLoading(true);
     const { data, error } = await supabase
       .from("template_tasks")
       .select("id, template_id, name, duration_days, starts_after, order")
-      .eq("template_id", TEMPLATE_ID)
+      .eq("template_id", tmplId)
       .order("order");
     if (error) {
       console.error("Ошибка загрузки шаблона:", error.message);
@@ -252,7 +289,10 @@ export default function TemplatePage() {
     // 1. INSERT product
     const { data: product, error: pErr } = await supabase
       .from("products")
-      .insert({ name: productName.trim() })
+      .insert({
+        name: productName.trim(),
+        ...(projectId !== null ? { project_id: projectId } : {}),
+      })
       .select("id")
       .single();
     if (pErr) {
@@ -302,7 +342,7 @@ export default function TemplatePage() {
     const { data, error } = await supabase
       .from("template_tasks")
       .insert({
-        template_id: TEMPLATE_ID,
+        template_id: templateId,
         name: "",
         duration_days: 1,
         starts_after: null,
@@ -534,7 +574,11 @@ export default function TemplatePage() {
         <Toast
           message={toast.message}
           actionLabel="Перейти к Ганту"
-          onAction={() => router.push(`/?product=${toast.productId}`)}
+          onAction={() =>
+            router.push(
+              `/?product=${toast.productId}${projectSlug ? `&project=${projectSlug}` : ""}`
+            )
+          }
           onClose={() => setToast(null)}
         />
       )}

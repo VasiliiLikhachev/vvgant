@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 
 type Manufacturer = {
@@ -17,6 +18,17 @@ type Product = {
 };
 
 export default function ProductsPage() {
+  return (
+    <Suspense>
+      <ProductsContent />
+    </Suspense>
+  );
+}
+
+function ProductsContent() {
+  const searchParams = useSearchParams();
+  const projectSlug = searchParams.get("project");
+
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploadingId, setUploadingId] = useState<number | null>(null);
@@ -25,15 +37,32 @@ export default function ProductsPage() {
   const fileInputRefs = useRef<Record<number, HTMLInputElement | null>>({});
 
   useEffect(() => {
-    load();
-  }, []);
+    load(projectSlug);
+  }, [projectSlug]);
 
-  async function load() {
+  async function load(slug: string | null) {
     setLoading(true);
-    const { data, error } = await supabase
+
+    let projectId: number | null = null;
+    if (slug) {
+      const { data: proj } = await supabase
+        .from("projects")
+        .select("id")
+        .eq("slug", slug)
+        .single();
+      projectId = proj?.id ?? null;
+    }
+
+    let query = supabase
       .from("products")
       .select("id, name, image_url, manufacturers(id, name)")
       .order("id");
+
+    if (projectId !== null) {
+      query = query.eq("project_id", projectId);
+    }
+
+    const { data, error } = await query;
     if (error) {
       console.error("Ошибка загрузки продуктов:", error.message);
     } else {
@@ -156,7 +185,7 @@ export default function ProductsPage() {
               {/* Действия */}
               <div className="flex flex-col gap-2 flex-shrink-0">
                 <Link
-                  href={`/?product=${product.id}`}
+                  href={`/?product=${product.id}${projectSlug ? `&project=${projectSlug}` : ""}`}
                   className="px-3 py-1.5 text-xs font-medium bg-zinc-900 text-white rounded-lg hover:bg-zinc-700 transition-colors text-center"
                 >
                   Перейти к Ганту

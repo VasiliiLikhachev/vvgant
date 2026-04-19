@@ -138,7 +138,11 @@ export default function Nav() {
       .select("id, name, slug, created_at")
       .single();
     if (pErr) {
-      setCreateError(pErr.message);
+      setCreateError(
+        pErr.code === "23505" && pErr.message.includes("projects_slug_key")
+          ? "Проект с таким slug уже существует"
+          : pErr.message
+      );
       setCreating(false);
       return;
     }

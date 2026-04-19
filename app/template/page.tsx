@@ -358,6 +358,28 @@ function TemplateContent() {
   }
 
   async function deleteTask(id: number) {
+    // Проверяем, есть ли связанные задачи продуктов
+    const { count } = await supabase
+      .from("tasks")
+      .select("id", { count: "exact", head: true })
+      .eq("template_task_id", id);
+
+    if ((count ?? 0) > 0) {
+      const confirmed = window.confirm(
+        `Этот этап используется в ${count} задачах продуктов. Удалить вместе со всеми связанными задачами?`
+      );
+      if (!confirmed) return;
+
+      const { error: tasksErr } = await supabase
+        .from("tasks")
+        .delete()
+        .eq("template_task_id", id);
+      if (tasksErr) {
+        console.error("Ошибка удаления связанных задач:", tasksErr.message);
+        return;
+      }
+    }
+
     const { error } = await supabase
       .from("template_tasks")
       .delete()

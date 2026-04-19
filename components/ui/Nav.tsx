@@ -111,7 +111,7 @@ export default function Nav() {
     setDropdownOpen(false);
     const params = new URLSearchParams(searchParams.toString());
     params.set("project", slug);
-    router.push(`${pathname}?${params.toString()}`);
+    window.location.href = `${pathname}?${params.toString()}`;
   }
 
   function linkHref(href: string) {

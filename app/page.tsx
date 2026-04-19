@@ -1,5 +1,7 @@
 import GanttTable from "@/components/gantt/GanttTable";
 
+export const dynamic = "force-dynamic";
+
 export default async function Home({
   searchParams,
 }: {

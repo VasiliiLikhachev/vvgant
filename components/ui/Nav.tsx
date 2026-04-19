@@ -63,7 +63,7 @@ export default function Nav() {
       setProjects(list);
       if (list.length === 0) return;
 
-      const urlSlug = searchParams.get("project");
+      const urlSlug = new URLSearchParams(window.location.search).get("project");
       const storedSlug =
         typeof window !== "undefined" ? localStorage.getItem(STORAGE_KEY) : null;
 
@@ -132,12 +132,14 @@ export default function Nav() {
     setCreateError(null);
 
     // 1. INSERT project
+    console.log("[createProject] step 1: inserting project", { name: newName.trim(), slug });
     const { data: project, error: pErr } = await supabase
       .from("projects")
       .insert({ name: newName.trim(), slug })
       .select("id, name, slug, created_at")
       .single();
     if (pErr) {
+      console.error("[createProject] step 1 error:", pErr);
       setCreateError(
         pErr.code === "23505" && pErr.message.includes("projects_slug_key")
           ? "Проект с таким slug уже существует"
@@ -146,34 +148,41 @@ export default function Nav() {
       setCreating(false);
       return;
     }
+    console.log("[createProject] step 1 ok: project.id =", project.id);
 
     // 2. INSERT новый шаблон
+    console.log("[createProject] step 2: inserting template for project_id =", project.id);
     const { data: newTemplate, error: tmplErr } = await supabase
       .from("templates")
       .insert({ name: "Шаблон", project_id: project.id })
       .select("id")
       .single();
     if (tmplErr) {
+      console.error("[createProject] step 2 error:", tmplErr);
       setCreateError(tmplErr.message);
       setCreating(false);
       return;
     }
+    console.log("[createProject] step 2 ok: template.id =", newTemplate.id);
 
     // 3. Копируем template_tasks из текущего проекта
     const srcProject = projects.find((p) => p.slug === currentSlug);
+    console.log("[createProject] step 3: srcProject =", srcProject ?? "not found");
     if (srcProject) {
-      const { data: srcTmpl } = await supabase
+      const { data: srcTmpl, error: srcTmplErr } = await supabase
         .from("templates")
         .select("id")
         .eq("project_id", srcProject.id)
         .single();
+      console.log("[createProject] step 3: srcTmpl =", srcTmpl, "error =", srcTmplErr);
 
       if (srcTmpl) {
-        const { data: srcTasks } = await supabase
+        const { data: srcTasks, error: srcTasksErr } = await supabase
           .from("template_tasks")
           .select("id, name, duration_days, starts_after, order")
           .eq("template_id", srcTmpl.id)
           .order("order");
+        console.log("[createProject] step 3: srcTasks count =", srcTasks?.length ?? 0, "error =", srcTasksErr);
 
         if (srcTasks && srcTasks.length > 0) {
           // Вставляем по одному, чтобы корректно ремаппить starts_after
@@ -181,7 +190,7 @@ export default function Nav() {
           for (const t of srcTasks) {
             const newStartsAfter =
               t.starts_after != null ? (idMap.get(t.starts_after) ?? null) : null;
-            const { data: ins } = await supabase
+            const { data: ins, error: insErr } = await supabase
               .from("template_tasks")
               .insert({
                 template_id: newTemplate.id,
@@ -192,8 +201,10 @@ export default function Nav() {
               })
               .select("id")
               .single();
+            if (insErr) console.error("[createProject] step 3: insert task error:", insErr);
             if (ins) idMap.set(t.id, ins.id);
           }
+          console.log("[createProject] step 3: copied", idMap.size, "tasks");
         }
       }
     }

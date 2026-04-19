@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import GanttBar from "./GanttBar";
 import Tooltip from "@/components/ui/Tooltip";
 import { supabase } from "@/lib/supabase";
@@ -181,6 +181,20 @@ function TaskNameCell({
   );
 }
 
+const SETTINGS_KEY = "gantt_settings";
+
+function loadSetting<T>(key: string, defaultValue: T): T {
+  if (typeof window === "undefined") return defaultValue;
+  try {
+    const raw = localStorage.getItem(SETTINGS_KEY);
+    if (!raw) return defaultValue;
+    const parsed = JSON.parse(raw);
+    return key in parsed ? parsed[key] : defaultValue;
+  } catch {
+    return defaultValue;
+  }
+}
+
 export default function GanttTableClient({
   tasks: initialTasks,
   initialProductFilter,
@@ -189,6 +203,7 @@ export default function GanttTableClient({
   initialProductFilter?: number | null;
 }) {
   const [tasks, setTasks] = useState<Task[]>(initialTasks);
+  const [isMounted, setIsMounted] = useState(false);
   const [showPlanStart, setShowPlanStart] = useState(true);
   const [showPlanEnd, setShowPlanEnd] = useState(true);
   const [showFactStart, setShowFactStart] = useState(true);
@@ -210,6 +225,66 @@ export default function GanttTableClient({
   const [rangeEnd, setRangeEnd] = useState(() => initRange("weeks").end);
   const [groupMode, setGroupMode] = useState<"product" | "manufacturer">("product");
   const [imgTooltip, setImgTooltip] = useState<{ url: string; x: number; y: number } | null>(null);
+
+  // Читаем настройки из localStorage только после монтирования (избегаем hydration mismatch)
+  useEffect(() => {
+    const v = loadSetting<Record<string, boolean>>("visibleColumns", {});
+    if ("planStart" in v) setShowPlanStart(v.planStart);
+    if ("planEnd" in v) setShowPlanEnd(v.planEnd);
+    if ("factStart" in v) setShowFactStart(v.factStart);
+    if ("factEnd" in v) setShowFactEnd(v.factEnd);
+    if ("product" in v) setShowProduct(v.product);
+    if ("manufacturer" in v) setShowManufacturer(v.manufacturer);
+
+    const savedScale = loadSetting<Scale>("scale", "weeks");
+    const savedGrid = loadSetting<boolean>("showGrid", false);
+    const savedWeekends = loadSetting<boolean>("showWeekends", false);
+    const savedGroupBy = loadSetting<"product" | "manufacturer">("groupBy", "product");
+
+    setScale(savedScale);
+    setRangeStart(initRange(savedScale).start);
+    setRangeEnd(initRange(savedScale).end);
+    setShowGrid(savedGrid);
+    setShowWeekends(savedWeekends);
+    setGroupMode(savedGroupBy);
+
+    setStatusFilter(loadSetting<string[]>("selectedStatuses", []));
+    setProductFilter(loadSetting<string[]>("selectedProducts", []));
+    setManufacturerFilter(loadSetting<string[]>("selectedManufacturers", []));
+    setTaskNameFilter(loadSetting<string[]>("selectedTaskNames", []));
+
+    setIsMounted(true);
+  }, []);
+
+  // Сохраняем настройки при каждом изменении (только после монтирования)
+  useEffect(() => {
+    if (!isMounted) return;
+    try {
+      localStorage.setItem(
+        SETTINGS_KEY,
+        JSON.stringify({
+          visibleColumns: {
+            planStart: showPlanStart,
+            planEnd: showPlanEnd,
+            factStart: showFactStart,
+            factEnd: showFactEnd,
+            product: showProduct,
+            manufacturer: showManufacturer,
+          },
+          scale,
+          showGrid,
+          showWeekends,
+          groupBy: groupMode,
+          selectedStatuses: statusFilter,
+          selectedProducts: productFilter,
+          selectedManufacturers: manufacturerFilter,
+          selectedTaskNames: taskNameFilter,
+        })
+      );
+    } catch {
+      // localStorage недоступен — игнорируем
+    }
+  }, [isMounted, showPlanStart, showPlanEnd, showFactStart, showFactEnd, showProduct, showManufacturer, scale, showGrid, showWeekends, groupMode, statusFilter, productFilter, manufacturerFilter, taskNameFilter]);
 
   async function updateStatus(id: string, value: string) {
     const { error } = await supabase

@@ -358,11 +358,35 @@ function TemplateContent() {
   }
 
   async function deleteTask(id: number) {
-    // Проверяем, есть ли связанные задачи продуктов
-    const { count } = await supabase
+    // Получаем product_ids текущего проекта
+    let productIds: number[] | null = null;
+    if (projectId !== null) {
+      const { data: products } = await supabase
+        .from("products")
+        .select("id")
+        .eq("project_id", projectId);
+      productIds = (products ?? []).map((p: { id: number }) => p.id);
+    }
+
+    // Проверяем, есть ли связанные задачи в текущем проекте
+    let countQuery = supabase
       .from("tasks")
       .select("id", { count: "exact", head: true })
       .eq("template_task_id", id);
+    if (productIds !== null) {
+      if (productIds.length === 0) {
+        // В проекте нет продуктов — удаляем этап сразу
+        const { error } = await supabase.from("template_tasks").delete().eq("id", id);
+        if (error) console.error("Ошибка удаления:", error.message);
+        else {
+          setTasks((prev) => prev.filter((t) => t.id !== id));
+          dirtyIds.current.delete(id);
+        }
+        return;
+      }
+      countQuery = countQuery.in("product_id", productIds);
+    }
+    const { count } = await countQuery;
 
     if ((count ?? 0) > 0) {
       const confirmed = window.confirm(
@@ -370,10 +394,14 @@ function TemplateContent() {
       );
       if (!confirmed) return;
 
-      const { error: tasksErr } = await supabase
+      let deleteQuery = supabase
         .from("tasks")
         .delete()
         .eq("template_task_id", id);
+      if (productIds !== null) {
+        deleteQuery = deleteQuery.in("product_id", productIds);
+      }
+      const { error: tasksErr } = await deleteQuery;
       if (tasksErr) {
         console.error("Ошибка удаления связанных задач:", tasksErr.message);
         return;
